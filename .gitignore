@@ -1,8 +1,16 @@
 # Compiled class file
 *.class
+target/
 
 # Log file
 *.log
+
+# IDE files
+.vscode/
+.idea/
+
+# Database
+*.db
 
 # BlueJ files
 *.ctxt
