@@ -43,21 +43,28 @@ public class TicketsHandler implements HttpHandler {
 
                     JsonObject jsonRequest = JsonParser.parseString(requestBody).getAsJsonObject();
 
+                    // --- LOGICA DE IDEMPOTENCIA ---
+                    // 1. Extraemos la llave de idempotencia del JSON recibido
                     String idempotencyKey = jsonRequest.has("idempotency_key")
                             ? jsonRequest.get("idempotency_key").getAsString()
                             : null;
 
+                    // 2. Si el cliente envió una llave, verificamos si ya procesamos esta petición
+                    // antes
                     if (idempotencyKey != null) {
+                        // Buscamos en la base de datos si ya existe un registro con esta llave
                         JsonObject cachedResponse = ticketRepository.findByIdempotencyKey(idempotencyKey);
                         if (cachedResponse != null) {
-                            logger.info("Idempotency match found for key: {}. Returning cached response.",
+                            // Si existe, NO volvemos a comprar el ticket.
+                            // Simplemente devolvemos la respuesta que ya teníamos guardada.
+                            logger.info("Idempotencia: clave '{}' ya procesada. Devolviendo respuesta guardada.",
                                     idempotencyKey);
                             response = cachedResponse.toString();
                             he.sendResponseHeaders(200, response.length());
                             OutputStream os = he.getResponseBody();
                             os.write(response.getBytes());
                             os.close();
-                            return;
+                            return; // Terminamos aquí para evitar duplicados
                         }
                     }
 
@@ -71,6 +78,10 @@ public class TicketsHandler implements HttpHandler {
                     ticketRepository.incrementSoldTickets(eventId);
 
                     logger.info("Ticket comprado: id={}, evento={}, usuario={}", ticketId, eventId, userName);
+
+                    // Simulación de lentitud: el proxy dará Read Timeout y reintentará.
+                    // En el reintento, la idempotencia devuelve el ticket ya guardado sin duplicar.
+                    Thread.sleep(2000);
 
                     JsonObject jsonResponse = new JsonObject();
                     jsonResponse.addProperty("status", "OK");

@@ -24,9 +24,9 @@ public class IdempotencyTest {
         System.out.println("Respuesta 2: " + response2);
 
         if (response1.equals(response2)) {
-            System.out.println("\n✅ ÉXITO: Ambas respuestas son iguales. La idempotencia funciona.");
+            System.out.println("\nÉXITO: Ambas respuestas son iguales. La idempotencia funciona.");
         } else {
-            System.out.println("\n❌ ERROR: Las respuestas son diferentes. La idempotencia falló.");
+            System.out.println("\nERROR: Las respuestas son diferentes. La idempotencia falló.");
         }
 
         String newKey = UUID.randomUUID().toString();
@@ -37,9 +37,9 @@ public class IdempotencyTest {
         System.out.println("Respuesta 3: " + response3);
 
         if (!response3.equals(response1)) {
-            System.out.println("\n✅ ÉXITO: La nueva petición generó un resultado diferente (nuevo ticket).");
+            System.out.println("\nÉXITO: La nueva petición generó un resultado diferente (nuevo ticket).");
         } else {
-            System.out.println("\n❌ ERROR: La nueva petición devolvió el mismo resultado que la anterior.");
+            System.out.println("\nERROR: La nueva petición devolvió el mismo resultado que la anterior.");
         }
     }
 
@@ -65,3 +65,6 @@ public class IdempotencyTest {
         }
     }
 }
+
+// Cuando reciba un read timeout, debe volver a intentar con el mismo request
+// que recibio

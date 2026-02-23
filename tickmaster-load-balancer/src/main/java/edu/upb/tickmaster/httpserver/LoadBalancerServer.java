@@ -23,6 +23,8 @@ public class LoadBalancerServer {
     private static final Logger logger = LoggerFactory.getLogger(LoadBalancerServer.class);
     private HttpServer server = null;
     private final String backendServerUrl = "http://localhost:1914";
+    // private final String backendServerUrl = "http://10.255.255.1:1914";
+    // GET http://localhost:1915/tickets
 
     public LoadBalancerServer() {
     }

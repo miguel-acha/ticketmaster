@@ -49,7 +49,7 @@ public class EventsHandler implements HttpHandler {
                     ticketRepository.saveEvent(name, totalTickets, date);
 
                     logger.info("Evento creado: nombre={}, tickets={}, fecha={}", name, totalTickets, date);
-
+                    Thread.sleep(3000);
                     JsonObject jsonResponse = new JsonObject();
                     jsonResponse.addProperty("status", "OK");
                     jsonResponse.addProperty("message", "Event created successfully");

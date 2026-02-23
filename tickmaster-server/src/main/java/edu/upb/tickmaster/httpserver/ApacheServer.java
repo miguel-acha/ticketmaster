@@ -30,6 +30,9 @@ public class ApacheServer {
     public boolean start() {
         try {
             this.server = HttpServer.create(new InetSocketAddress(1914), 0);
+            // --- REGISTRO DE RUTAS ---
+            // El primer parámetro es el "contexto" (la URL que verá el cliente)
+            // El segundo parámetro es el "handler" (la clase que procesa la petición)
             this.server.createContext("/", exchange -> {
                 Headers headers = exchange.getResponseHeaders();
                 headers.add("Access-Control-Allow-Origin", "*");
@@ -38,6 +41,7 @@ public class ApacheServer {
                 new RootHandler().handle(exchange);
             });
 
+            // Registro de los diferentes servicios de la API
             this.server.createContext("/hola", new EchoPostHandler());
             this.server.createContext("/eventos", new EventsHandler());
             this.server.createContext("/tickets", new TicketsHandler());
