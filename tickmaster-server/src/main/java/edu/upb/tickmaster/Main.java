@@ -36,6 +36,12 @@ public class Main {
         ApacheServer apacheServer = new ApacheServer();
         if (apacheServer.start()) {
             logger.info("Tickmaster Server iniciado correctamente en puerto 1914");
+            try {
+                logger.info("Presiona Ctrl+C para detener...");
+                Thread.currentThread().join();
+            } catch (InterruptedException e) {
+                logger.info("Interrumpido, deteniendo...");
+            }
         } else {
             logger.error("No se pudo iniciar el servidor");
         }

@@ -67,7 +67,7 @@ public class HealthCheckHandler implements HttpHandler {
             Connection conn = ConexionDb.getInstance().getConnection();
             if (conn != null && !conn.isClosed()) {
                 database.addProperty("status", "UP");
-                database.addProperty("url", "jdbc:sqlite:tickmaster.db");
+                database.addProperty("url", conn.getMetaData().getURL());
             } else {
                 database.addProperty("status", "DOWN");
                 database.addProperty("message", "Conexión cerrada");

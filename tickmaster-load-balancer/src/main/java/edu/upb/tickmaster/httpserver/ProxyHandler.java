@@ -12,32 +12,27 @@ import java.net.URL;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Reenvía peticiones al backend con lógica de reintento.
- * Si el backend tarda más de READ_TIMEOUT ms (Read timed out), reintenta una
- * vez.
- * La idempotencia del backend evita duplicados en el reintento.
- *
- * 502 → Connect timed out (no se pudo conectar al backend)
- * 504 → Read timed out en ambos intentos (backend no respondió a tiempo)
- */
 public class ProxyHandler implements HttpHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(ProxyHandler.class);
-    private final String backendServerUrl;
-    private static final int CONNECT_TIMEOUT = 10000; // 10s para conectar
-    private static final int READ_TIMEOUT = 1995; // 1.995s para recibir respuesta
+    private static final int CONNECT_TIMEOUT = 10000;
+    private static final int READ_TIMEOUT = 1995;
 
-    public ProxyHandler(String backendServerUrl) {
-        this.backendServerUrl = backendServerUrl;
+    public ProxyHandler() {
     }
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
+        String backendServerUrl = ServerRegistro.getNextServer();
+        if (backendServerUrl == null) {
+            exchange.sendResponseHeaders(503, -1);
+            exchange.close();
+            return;
+        }
         String targetUrl = backendServerUrl + exchange.getRequestURI().toString();
         String method = exchange.getRequestMethod();
 
-        // Leer el body UNA sola vez: el InputStream solo se puede leer una vez,
+        // Leer el body UNA sola vez el InputStream solo se puede leer una vez,
         // así que lo guardamos en memoria para poder reenviar en el reintento
         byte[] cachedRequestBody = new byte[0];
         if (method.equals("POST") || method.equals("PUT")) {
@@ -52,12 +47,12 @@ public class ProxyHandler implements HttpHandler {
             }
         }
 
-        // Bucle de reintentos (máximo 2 intentos)
+        // Bucle de reintentos
         int intento = 0;
         while (intento < 2) {
             intento++;
             try {
-                logger.info("Petición a: {} (intento {})", targetUrl, intento);
+                logger.info("Peticion a: {} (intento {})", targetUrl, intento);
 
                 URL url = new URL(targetUrl);
                 HttpURLConnection connection = (HttpURLConnection) url.openConnection();
@@ -100,7 +95,7 @@ public class ProxyHandler implements HttpHandler {
                     }
                 }
 
-                // Leer respuesta del backend (getErrorStream si código >= 400)
+                // Leer respuesta del backend
                 InputStream backendResponse;
                 try {
                     backendResponse = connection.getInputStream();
@@ -134,15 +129,14 @@ public class ProxyHandler implements HttpHandler {
             } catch (IOException e) {
                 String errorMsg = (e.getMessage() != null) ? e.getMessage() : "";
 
-                // Read Timeout en el primer intento: el backend ya procesó la petición
-                // pero no alcanzó a responder. "continue" dispara el segundo intento.
-                // La idempotencia del backend devuelve 200 sin duplicar datos.
+                // Read Timeout en el primer intento
+                // La idempotencia del backend devuelve 200 sin duplicar datos
                 if (errorMsg.contains("Read timed out") && intento == 1) {
                     logger.warn("Read timed out, reintentando una vez más...");
                     continue;
                 }
 
-                // Error final → 502 si no se conectó, 504 si no respondió a tiempo
+                // Error final 502 si no se conect0, 504 si no respondió a tiempo
                 logger.error("Error comunicado con el backend: {}", errorMsg);
                 if (errorMsg.contains("Connect timed out")) {
                     exchange.sendResponseHeaders(502, -1);

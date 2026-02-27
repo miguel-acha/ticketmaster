@@ -31,10 +31,10 @@ public class Main {
             logger.info("Reenviando peticiones a http://localhost:1914");
 
             try {
-                BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
-                reader.readLine();
-            } catch (IOException e) {
-                logger.error("Error al esperar entrada del usuario", e);
+                logger.info("Presiona Ctrl+C para detener...");
+                Thread.currentThread().join();
+            } catch (InterruptedException e) {
+                logger.info("Interrumpido, deteniendo...");
             }
 
             loadBalancer.stop();

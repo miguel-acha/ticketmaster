@@ -22,9 +22,6 @@ public class LoadBalancerServer {
 
     private static final Logger logger = LoggerFactory.getLogger(LoadBalancerServer.class);
     private HttpServer server = null;
-    private final String backendServerUrl = "http://localhost:1914";
-    // private final String backendServerUrl = "http://10.255.255.1:1914";
-    // GET http://localhost:1915/tickets
 
     public LoadBalancerServer() {
     }
@@ -34,11 +31,7 @@ public class LoadBalancerServer {
             // Crear servidor en puerto 1915
             this.server = HttpServer.create(new InetSocketAddress(1915), 0);
 
-            logger.info("Iniciando en puerto 1915");
-            logger.info("Backend server: {}", backendServerUrl);
-
-            // Crear proxy handler para todas las rutas
-            ProxyHandler proxyHandler = new ProxyHandler(backendServerUrl);
+            logger.info("Iniciando Balanceador en puerto 1915");
 
             // Configurar CORS para todas las rutas
             this.server.createContext("/", exchange -> {
@@ -47,9 +40,10 @@ public class LoadBalancerServer {
                 headers.add("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE");
                 headers.add("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
-                // Health check
-                if (exchange.getRequestURI().getPath().equals("/health")) {
-                    String response = "{\"status\": \"OK\"}";
+                // Health check propio del balanceador
+                if (exchange.getRequestURI().getPath().equals("/lb-health")) {
+                    String response = "{\"status\": \"OK\", \"servidores\": " + ServerRegistro.getAll().toString()
+                            + "}";
                     exchange.sendResponseHeaders(200, response.length());
                     OutputStream os = exchange.getResponseBody();
                     os.write(response.getBytes());
@@ -61,11 +55,17 @@ public class LoadBalancerServer {
                 if (exchange.getRequestMethod().equalsIgnoreCase("OPTIONS")) {
                     exchange.sendResponseHeaders(200, -1);
                     exchange.close();
-                } else {
-                    // Reenviar al proxy handler
-                    proxyHandler.handle(exchange);
+                    return;
+                }
+
+                try {
+                    new ProxyHandler().handle(exchange);
+                } catch (Exception e) {
+                    logger.error("Error en el proxy: " + e.getMessage());
                 }
             });
+
+            this.server.createContext("/registrar", new RegistroHandler());
 
             this.server.setExecutor(Executors.newFixedThreadPool(10));
             this.server.start();
