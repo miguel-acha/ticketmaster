@@ -3,6 +3,7 @@ package edu.upb.tickmaster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import edu.upb.tickmaster.db.ConexionDb;
+import edu.upb.tickmaster.grpc.ProtoServer;
 import edu.upb.tickmaster.httpserver.ApacheServer;
 import java.io.*;
 
@@ -10,7 +11,7 @@ public class Main {
 
     private static final Logger logger = LoggerFactory.getLogger(Main.class);
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException, InterruptedException {
 
         String archivoConfig = "config.acha";
         Configuracion miConfig = new Configuracion("localhost", 8080, "miguel");
@@ -34,6 +35,13 @@ public class Main {
         logger.info("Iniciando Tickmaster Server...");
         ConexionDb.getInstance();
         ApacheServer apacheServer = new ApacheServer();
+        System.out.println("-------- TickMaster started 1.0 ---------");
+        System.out.println("-------- Puerto:  1914 ---------");
+        System.out.println("-------- Stereum Tech           ---------");
+
+        ProtoServer protoServer = new ProtoServer();
+        protoServer.start();
+
         if (apacheServer.start()) {
             logger.info("Tickmaster Server iniciado correctamente en puerto 1914");
             try {

@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+
+option java_package = "edu.upb.tickmaster.grpc";
+option java_multiple_files = true;
+
+package tickmaster;
+
+
+// ============ SERVICIO DE PRODUCTOS (ya existente) ============
+service ProductoService {
+  rpc registrarProducto (ProductoRequest) returns (ProductoResponse);
+  rpc obtenerProducto (IdRequest) returns (ProductoRequest);
+}
+
+// ============ SERVICIO DE TICKETS ============
+service TicketService {
+  rpc ComprarTicket (ComprarTicketRequest) returns (ComprarTicketResponse);
+  rpc ObtenerEventos (VacioRequest) returns (ListaEventosResponse);
+}
+
+
+// ---------- Mensajes de Producto ----------
+enum Categoria {
+  ELECTRONICA = 0;
+  ALIMENTOS = 1;
+  VESTIMENTA = 2;
+  OTROS = 3;
+}
+
+message ProductoRequest {
+  string id = 1;
+  string nombre = 2;
+  string descripcion = 3;
+  double precio = 4;
+  int32 stock = 5;
+  Categoria categoria = 6;
+}
+
+message ProductoResponse {
+  string codigo_respuesta = 1;
+  string mensaje = 2;
+  string timestamp = 3;
+}
+
+message IdRequest {
+  string id = 1;
+}
+
+// ---------- Mensajes de Ticket ----------
+message ComprarTicketRequest {
+  int32 event_id = 1;
+  string user_name = 2;
+  string seat_number = 3;
+  string idempotency_key = 4;
+}
+
+message ComprarTicketResponse {
+  string status = 1;
+  string ticket_id = 2;
+  string message = 3;
+}
+
+message VacioRequest {}
+
+message Evento {
+  int32 id = 1;
+  string name = 2;
+  int32 total_tickets = 3;
+  int32 sold_tickets = 4;
+  string event_date = 5;
+}
+
+message ListaEventosResponse {
+  repeated Evento eventos = 1;
+}
