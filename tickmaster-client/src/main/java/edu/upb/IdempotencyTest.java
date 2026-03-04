@@ -12,7 +12,8 @@ public class IdempotencyTest {
 
     public static void main(String[] args) {
         String idempotencyKey = UUID.randomUUID().toString();
-        String jsonInputString = "{\"event_id\": 1, \"user_name\": \"TestUser\", \"idempotency_key\": \""
+        // Updated to use id_usuario and id_tipo_ticket instead of user_name
+        String jsonInputString = "{\"id_evento\": 1, \"id_usuario\": 1, \"id_tipo_ticket\": 1, \"idempotency_key\": \""
                 + idempotencyKey + "\"}";
 
         System.out.println("Enviando primera petición con key: " + idempotencyKey);
@@ -30,7 +31,8 @@ public class IdempotencyTest {
         }
 
         String newKey = UUID.randomUUID().toString();
-        String jsonInputString2 = "{\"event_id\": 1, \"user_name\": \"TestUser\", \"idempotency_key\": \"" + newKey
+        String jsonInputString2 = "{\"id_evento\": 1, \"id_usuario\": 1, \"id_tipo_ticket\": 1, \"idempotency_key\": \""
+                + newKey
                 + "\"}";
         System.out.println("\nEnviando tercera petición con una NUEVA key: " + newKey);
         String response3 = sendPost(jsonInputString2);

@@ -20,10 +20,10 @@ public class Main {
         // 1. Crear conexión al servidor gRPC
         ManagedChannel channel = ManagedChannelBuilder
                 .forAddress("localhost", 8081)
-                .usePlaintext() 
+                .usePlaintext()
                 .build();
 
-        // 2. Crear el "stub" 
+        // 2. Crear el "stub"
         TicketServiceGrpc.TicketServiceBlockingStub stub = TicketServiceGrpc.newBlockingStub(channel);
 
         Scanner scanner = new Scanner(System.in);
@@ -97,8 +97,11 @@ public class Main {
             System.out.print("ID del evento: ");
             int eventId = Integer.parseInt(scanner.nextLine().trim());
 
-            System.out.print("Tu nombre: ");
-            String userName = scanner.nextLine().trim();
+            System.out.print("ID de usuario: ");
+            int userId = Integer.parseInt(scanner.nextLine().trim());
+
+            System.out.print("ID de tipo de ticket (VIP, General, etc.): ");
+            int ticketTypeId = Integer.parseInt(scanner.nextLine().trim());
 
             System.out.print("Numero de asiento (o Enter para 'General'): ");
             String seat = scanner.nextLine().trim();
@@ -111,9 +114,10 @@ public class Main {
             // Construimos el mensaje de solicitud
             ComprarTicketRequest request = ComprarTicketRequest.newBuilder()
                     .setEventId(eventId)
-                    .setUserName(userName)
+                    .setUserId(userId)
                     .setSeatNumber(seat)
                     .setIdempotencyKey(idempotencyKey)
+                    .setTicketTypeId(ticketTypeId)
                     .build();
 
             // Llamada gRPC al servidor
@@ -125,7 +129,7 @@ public class Main {
             System.out.println("  Mensaje: " + response.getMessage());
 
         } catch (NumberFormatException e) {
-            System.err.println("El ID del evento debe ser un numero.");
+            System.err.println("Los IDs deben ser números enteros.");
         } catch (Exception e) {
             System.err.println("Error al comprar ticket: " + e.getMessage());
         }

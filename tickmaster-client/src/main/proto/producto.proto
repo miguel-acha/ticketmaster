@@ -49,10 +49,11 @@ message IdRequest {
 
 // ---------- Mensajes de Ticket ----------
 message ComprarTicketRequest {
-  int32 event_id = 1;
-  string user_name = 2;
-  string seat_number = 3;
+  int32  event_id        = 1;
+  int32  user_id         = 2;
+  string seat_number     = 3;
   string idempotency_key = 4;
+  int32  ticket_type_id  = 5;
 }
 
 message ComprarTicketResponse {
