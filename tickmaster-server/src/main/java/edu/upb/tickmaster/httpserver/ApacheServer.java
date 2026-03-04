@@ -47,6 +47,7 @@ public class ApacheServer {
             this.server.createContext("/eventos", new EventsHandler());
             this.server.createContext("/tickets", new TicketsHandler());
             this.server.createContext("/health", new HealthCheckHandler());
+            this.server.createContext("/usuarios", new UsuariosHandler());
 
             this.server.setExecutor(Executors.newFixedThreadPool(2));
             this.server.start();

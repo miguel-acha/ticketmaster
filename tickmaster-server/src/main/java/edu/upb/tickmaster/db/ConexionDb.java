@@ -32,7 +32,6 @@ public class ConexionDb {
 
     private ConexionDb() {
         try {
-            // Initial connection to the server to ensure DB exists
             connection = DriverManager.getConnection(SERVER_URL, USER, PASSWORD);
         } catch (SQLException e) {
             logger.error("Error al conectar al servidor MariaDB", e);
@@ -41,60 +40,146 @@ public class ConexionDb {
 
     private void initializeDatabase() throws SQLException {
         try (Statement stmt = connection.createStatement()) {
-            // Create database if not exists
+
+            // Crear base de datos si no existe
             stmt.execute("CREATE DATABASE IF NOT EXISTS " + DB_NAME);
             stmt.execute("USE " + DB_NAME);
 
-            // Create EVENTS table
-            String sqlEvents = "CREATE TABLE IF NOT EXISTS events ("
-                    + " id INT PRIMARY KEY AUTO_INCREMENT,"
-                    + " name VARCHAR(255) NOT NULL,"
-                    + " total_tickets INT NOT NULL,"
-                    + " sold_tickets INT DEFAULT 0,"
-                    + " event_date VARCHAR(50)"
-                    + ");";
-            stmt.execute(sqlEvents);
+            // -------------------------------------------------------
+            // Eliminar tablas antiguas (en orden correcto de FK)
+            // -------------------------------------------------------
+            stmt.execute("SET FOREIGN_KEY_CHECKS = 0");
+            stmt.execute("DROP TABLE IF EXISTS compras");
+            stmt.execute("DROP TABLE IF EXISTS tickets");
+            stmt.execute("DROP TABLE IF EXISTS tipo_ticket");
+            stmt.execute("DROP TABLE IF EXISTS eventos");
+            stmt.execute("DROP TABLE IF EXISTS usuarios");
+            // tablas del esquema legacy
+            stmt.execute("DROP TABLE IF EXISTS events");
+            stmt.execute("SET FOREIGN_KEY_CHECKS = 1");
 
-            // Create TICKETS table
-            String sqlTickets = "CREATE TABLE IF NOT EXISTS tickets ("
-                    + " id VARCHAR(255) PRIMARY KEY,"
-                    + " event_id INT NOT NULL,"
-                    + " user_name VARCHAR(255) NOT NULL,"
-                    + " seat_number VARCHAR(50),"
-                    + " purchase_date VARCHAR(100),"
-                    + " idempotency_key VARCHAR(255) UNIQUE,"
-                    + " FOREIGN KEY (event_id) REFERENCES events(id)"
-                    + ");";
-            stmt.execute(sqlTickets);
+            // -------------------------------------------------------
+            // 1. Tabla USUARIOS
+            // -------------------------------------------------------
+            stmt.execute("CREATE TABLE IF NOT EXISTS usuarios ("
+                    + "  id_usuario INT PRIMARY KEY AUTO_INCREMENT,"
+                    + "  username   VARCHAR(100) NOT NULL UNIQUE,"
+                    + "  nombre     VARCHAR(255) NOT NULL,"
+                    + "  password   VARCHAR(255) NOT NULL,"
+                    + "  rol        ENUM('admin','cliente') DEFAULT 'cliente'"
+                    + ")");
 
-            // Seed initial event if empty
-            String checkEvent = "SELECT COUNT(*) FROM events";
-            try (ResultSet rs = stmt.executeQuery(checkEvent)) {
-                if (rs.next() && rs.getInt(1) == 0) {
-                    stmt.execute(
-                            "INSERT INTO events (name, total_tickets, event_date) VALUES ('Concierto UPB', 100, '2024-12-01')");
-                    logger.info("Evento inicial creado.");
-                }
-            }
+            // -------------------------------------------------------
+            // 2. Tabla EVENTOS
+            // -------------------------------------------------------
+            stmt.execute("CREATE TABLE IF NOT EXISTS eventos ("
+                    + "  id_evento INT PRIMARY KEY AUTO_INCREMENT,"
+                    + "  nombre    VARCHAR(255) NOT NULL,"
+                    + "  fecha     DATETIME NOT NULL,"
+                    + "  capacidad INT NOT NULL"
+                    + ")");
 
-            logger.info("Tablas 'events' y 'tickets' verificadas/creadas exitosamente en MariaDB.");
+            // -------------------------------------------------------
+            // 3. Tabla TIPO_TICKET
+            // -------------------------------------------------------
+            stmt.execute("CREATE TABLE IF NOT EXISTS tipo_ticket ("
+                    + "  id_tipo_ticket INT PRIMARY KEY AUTO_INCREMENT,"
+                    + "  id_evento      INT NOT NULL,"
+                    + "  tipo_asiento   VARCHAR(100) NOT NULL,"
+                    + "  cantidad       INT NOT NULL,"
+                    + "  precio         DECIMAL(10,2) NOT NULL,"
+                    + "  FOREIGN KEY (id_evento) REFERENCES eventos(id_evento)"
+                    + ")");
+
+            // -------------------------------------------------------
+            // 4. Tabla TICKETS
+            // -------------------------------------------------------
+            stmt.execute("CREATE TABLE IF NOT EXISTS tickets ("
+                    + "  id_ticket       VARCHAR(36) PRIMARY KEY,"
+                    + "  id_evento       INT NOT NULL,"
+                    + "  id_usuario      INT NOT NULL,"
+                    + "  nro_asiento     VARCHAR(50),"
+                    + "  precio          DECIMAL(10,2) NOT NULL,"
+                    + "  idempotency_key VARCHAR(255) UNIQUE,"
+                    + "  id_tipo_ticket  INT NOT NULL,"
+                    + "  FOREIGN KEY (id_evento)      REFERENCES eventos(id_evento),"
+                    + "  FOREIGN KEY (id_usuario)     REFERENCES usuarios(id_usuario),"
+                    + "  FOREIGN KEY (id_tipo_ticket) REFERENCES tipo_ticket(id_tipo_ticket)"
+                    + ")");
+
+            // -------------------------------------------------------
+            // 5. Tabla COMPRAS
+            // -------------------------------------------------------
+            stmt.execute("CREATE TABLE IF NOT EXISTS compras ("
+                    + "  id_compra    INT PRIMARY KEY AUTO_INCREMENT,"
+                    + "  id_ticket    VARCHAR(36) NOT NULL,"
+                    + "  id_usuario   INT NOT NULL,"
+                    + "  fecha_compra DATETIME DEFAULT CURRENT_TIMESTAMP,"
+                    + "  total        DECIMAL(10,2) NOT NULL,"
+                    + "  estado       ENUM('pendiente','completada','cancelada') DEFAULT 'completada',"
+                    + "  FOREIGN KEY (id_ticket)  REFERENCES tickets(id_ticket),"
+                    + "  FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario)"
+                    + ")");
+
+            // Datos iniciales
+            seedData(stmt);
+
+            logger.info("Esquema de BD creado: usuarios, eventos, tipo_ticket, tickets, compras.");
+
         } catch (SQLException e) {
             logger.error("Error al crear las tablas o base de datos", e);
             throw e;
         }
     }
 
-    // Método para obtener la única instancia
+    private void seedData(Statement stmt) throws SQLException {
+        // Usuarios de prueba
+        try (ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM usuarios")) {
+            if (rs.next() && rs.getInt(1) == 0) {
+                stmt.execute("INSERT INTO usuarios (username, nombre, password, rol) "
+                        + "VALUES ('admin', 'Administrador', 'admin123', 'admin')");
+                stmt.execute("INSERT INTO usuarios (username, nombre, password, rol) "
+                        + "VALUES ('cliente1', 'Juan Perez', '1234', 'cliente')");
+                logger.info("Usuarios iniciales creados.");
+            }
+        }
+
+        // Eventos de prueba
+        try (ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM eventos")) {
+            if (rs.next() && rs.getInt(1) == 0) {
+                stmt.execute("INSERT INTO eventos (nombre, fecha, capacidad) "
+                        + "VALUES ('Concierto UPB', '2025-06-01 20:00:00', 200)");
+                stmt.execute("INSERT INTO eventos (nombre, fecha, capacidad) "
+                        + "VALUES ('Festival de Jazz', '2025-08-15 18:00:00', 500)");
+
+                // Tipos de ticket - Concierto UPB (id=1)
+                stmt.execute("INSERT INTO tipo_ticket (id_evento, tipo_asiento, cantidad, precio) "
+                        + "VALUES (1, 'VIP', 50, 150.00)");
+                stmt.execute("INSERT INTO tipo_ticket (id_evento, tipo_asiento, cantidad, precio) "
+                        + "VALUES (1, 'General', 150, 50.00)");
+
+                // Tipos de ticket - Festival de Jazz (id=2)
+                stmt.execute("INSERT INTO tipo_ticket (id_evento, tipo_asiento, cantidad, precio) "
+                        + "VALUES (2, 'Palco', 100, 200.00)");
+                stmt.execute("INSERT INTO tipo_ticket (id_evento, tipo_asiento, cantidad, precio) "
+                        + "VALUES (2, 'General', 400, 75.00)");
+
+                logger.info("Eventos y tipos de ticket iniciales creados.");
+            }
+        }
+    }
+
+    /** Obtener la única instancia (Singleton). */
     public static ConexionDb getInstance() {
         return db;
     }
 
-    // Método para obtener la conexión
+    /** Obtener la conexión activa. */
     public Connection getConnection() {
         return connection;
     }
 
-    // Método para cerrar la conexión
+    /** Cerrar la conexión. */
     public void cerrarConexion() {
         if (connection != null) {
             try {
@@ -106,7 +191,6 @@ public class ConexionDb {
         }
     }
 
-    // Main method for testing connection
     public static void main(String[] args) {
         ConexionDb.getInstance();
     }
