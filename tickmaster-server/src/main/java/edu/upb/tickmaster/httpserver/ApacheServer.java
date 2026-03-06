@@ -9,7 +9,8 @@ import com.sun.net.httpserver.HttpServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -25,7 +26,6 @@ public class ApacheServer {
 
     private static final Logger logger = LoggerFactory.getLogger(ApacheServer.class);
     private HttpServer server = null;
-    private boolean isServerDone = false;
     private final int PUERTO = 1914;
 
     public ApacheServer() {
@@ -48,6 +48,7 @@ public class ApacheServer {
             this.server.createContext("/tickets", new TicketsHandler());
             this.server.createContext("/health", new HealthCheckHandler());
             this.server.createContext("/usuarios", new UsuariosHandler());
+            this.server.createContext("/webhook", new WebhookHandler());
 
             this.server.setExecutor(Executors.newFixedThreadPool(2));
             this.server.start();
@@ -63,8 +64,8 @@ public class ApacheServer {
     }
 
     private void registrarMe() {
-        int maxRetries = 5;
-        int delay = 2000;
+        int maxRetries = 2; // Reducido para evitar retrasos largos si el LB no esta
+        int delay = 1000;
         for (int i = 0; i < maxRetries; i++) {
             try {
                 String lbUrl = System.getenv("LB_URL");
