@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tickmaster - Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div id="alert-container"></div>
+
+    <header>
+        <div class="container" style="padding: 0;">
+            <nav>
+                <h1 style="color: var(--primary-color)">Tickmaster</h1>
+                <div class="nav-links">
+                    <a href="#" class="nav-link active" onclick="showTab('eventos-tab', this)">Eventos</a>
+                    <a href="#" class="nav-link" onclick="showTab('mis-tickets-tab', this)">Mis Tickets</a>
+                    <a href="#" class="nav-link" id="admin-nav" style="display: none;"
+                        onclick="showTab('admin-tab', this)">Panel Admin</a>
+                </div>
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <span id="user-display" style="color: var(--text-secondary); font-size: 0.9rem;"></span>
+                    <button class="btn btn-secondary" onclick="logout()" style="padding: 0.5rem 1rem;">Cerrar
+                        Sesión</button>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Tab: Eventos -->
+        <section id="eventos-tab" class="dashboard-section">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                <h2>Próximos Eventos</h2>
+                <button id="admin-create-btn" class="btn btn-secondary" style="display: none;"
+                    onclick="toggleCreateForm()">+ Nuevo Evento</button>
+            </div>
+
+            <!-- Formulario de creación (oculto por defecto) -->
+            <div id="create-event-section" class="glass-card"
+                style="display: none; margin-bottom: 2rem; border-color: var(--primary-color);">
+                <h3 style="margin-bottom: 1.5rem;">Registrar Nuevo Evento</h3>
+                <form id="create-event-form">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label>Nombre del Evento</label>
+                            <input type="text" id="ev-nombre" placeholder="Ej: Concierto Rock" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Fecha y Hora</label>
+                            <input type="datetime-local" id="ev-fecha" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Capacidad Total</label>
+                            <input type="number" id="ev-capacidad" placeholder="500" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Precio Entrada General ($)</label>
+                            <input type="number" id="ev-precio" placeholder="50.00" step="0.01" required>
+                        </div>
+                    </div>
+                    <div style="margin-top: 1rem; display: flex; gap: 1rem;">
+                        <button type="submit" class="btn btn-primary">Guardar Evento y Entradas</button>
+                        <button type="button" class="btn btn-secondary" onclick="toggleCreateForm()">Cancelar</button>
+                    </div>
+                </form>
+            </div>
+
+            <div id="lista-eventos" class="grid">
+                <!-- Los eventos se cargan aquí -->
+                <p style="color: var(--text-secondary)">Cargando eventos...</p>
+            </div>
+        </section>
+
+        <!-- Tab: Mis Tickets -->
+        <section id="mis-tickets-tab" class="dashboard-section" style="display: none;">
+            <h2 style="margin-bottom: 2rem;">Mis Entradas</h2>
+            <div id="lista-tickets" class="grid">
+                <!-- Los tickets se cargan aquí -->
+                <p style="color: var(--text-secondary)">No tienes tickets aún.</p>
+            </div>
+        </section>
+
+        <section id="admin-tab" class="dashboard-section" style="display: none;">
+            <div class="glass-card" style="max-width: 600px; margin: 0 auto;">
+                <h2 style="margin-bottom: 1.5rem;">Panel de Administración</h2>
+                <p style="color: var(--text-secondary)">Usa el botón "+ Nuevo Evento" en la pestaña de Eventos para
+                    crear contenido.</p>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal para comprar (Simple version) -->
+    <div id="buy-modal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center;">
+        <div class="glass-card" style="width: 100%; max-width: 500px;">
+            <h2 id="modal-event-title" style="margin-bottom: 1.5rem;">Cargando...</h2>
+            <div id="ticket-types-container" class="form-group">
+                <!-- Tipos de ticket se cargan aquí -->
+            </div>
+            <div style="display: flex; gap: 1rem;">
+                <button class="btn btn-secondary" style="flex: 1" onclick="closeModal()">Cancelar</button>
+                <button id="confirm-buy-btn" class="btn btn-primary" style="flex: 1">Confirmar Compra</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = "http://localhost:1915";
+        let userData = JSON.parse(localStorage.getItem('user'));
+        let selectedEventId = null;
+
+        if (!userData) window.location.href = 'login.html';
+
+        document.getElementById('user-display').textContent = `Hola, ${userData.nombre}`;
+        if (userData.rol === 'admin') {
+            document.getElementById('admin-nav').style.display = 'block';
+            document.getElementById('admin-create-btn').style.display = 'block';
+        }
+
+        function showNotification(message, type = 'success') {
+            const container = document.getElementById('alert-container');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            container.appendChild(alert);
+            setTimeout(() => alert.remove(), 4000);
+        }
+
+        function showTab(tabId, el) {
+            document.querySelectorAll('.dashboard-section').forEach(s => s.style.display = 'none');
+            document.getElementById(tabId).style.display = 'block';
+            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+            el.classList.add('active');
+
+            if (tabId === 'eventos-tab') cargarEventos();
+            if (tabId === 'mis-tickets-tab') cargarMisTickets();
+        }
+
+        async function cargarEventos() {
+            try {
+                const res = await fetch(`${API_BASE}/eventos`);
+                const eventos = await res.json();
+                const container = document.getElementById('lista-eventos');
+                container.innerHTML = eventos.length ? '' : '<p>No hay eventos disponibles.</p>';
+
+                eventos.forEach(ev => {
+                    const card = document.createElement('div');
+                    card.className = 'glass-card event-card';
+                    card.innerHTML = `
+                        <div class="event-header">
+                            <div>
+                                <h3 style="margin-bottom: 0.5rem;">${ev.nombre}</h3>
+                                <span class="badge badge-blue">${new Date(ev.fecha).toLocaleString()}</span>
+                            </div>
+                        </div>
+                        <div style="margin-top: 1rem;">
+                            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.5rem;">
+                                Capacidad: ${ev.capacidad} personas
+                            </p>
+                            <button class="btn btn-primary" style="width: 100%" onclick="openBuyModal(${ev.id_evento}, '${ev.nombre}')">Comprar Entradas</button>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+            } catch (err) {
+                showNotification('Error al cargar eventos', 'error');
+            }
+        }
+
+        async function openBuyModal(eventId, eventName) {
+            selectedEventId = eventId;
+            document.getElementById('modal-event-title').textContent = eventName;
+            document.getElementById('buy-modal').style.display = 'flex';
+
+            const container = document.getElementById('ticket-types-container');
+            container.innerHTML = '<p>Buscando tipos de entradas...</p>';
+
+            try {
+                const res = await fetch(`${API_BASE}/eventos/tipos?id=${eventId}`);
+                const tipos = await res.json();
+
+                if (!tipos.length) {
+                    container.innerHTML = '<p style="color: var(--secondary-color)">Aún no hay entradas configuradas para este evento.</p>';
+                    document.getElementById('confirm-buy-btn').disabled = true;
+                    return;
+                }
+
+                document.getElementById('confirm-buy-btn').disabled = false;
+                container.innerHTML = '<label>Selecciona tu entrada</label><select id="ticket-type-select"></select>';
+                const select = document.getElementById('ticket-type-select');
+
+                tipos.forEach(t => {
+                    const opt = document.createElement('option');
+                    opt.value = t.id_tipo_ticket;
+                    opt.textContent = `${t.tipo_asiento} - $${t.precio} (${t.cantidad} disponibles)`;
+                    select.appendChild(opt);
+                });
+
+                document.getElementById('confirm-buy-btn').onclick = () => realizarCompra(select.value);
+
+            } catch (err) {
+                showNotification('Error al obtener tipos de tickets', 'error');
+            }
+        }
+
+        async function realizarCompra(tipoId) {
+            const btn = document.getElementById('confirm-buy-btn');
+            btn.disabled = true;
+            btn.textContent = 'Procesando...';
+
+            try {
+                const res = await fetch(`${API_BASE}/tickets`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id_evento: selectedEventId,
+                        id_usuario: userData.id_usuario,
+                        id_tipo_ticket: parseInt(tipoId),
+                        idempotency_key: 'KEY-' + Date.now()
+                    })
+                });
+
+                const data = await res.json();
+                if (data.status === 'OK') {
+                    showNotification('¡Compra realizada con éxito! Revisa tu email ficticio.');
+                    closeModal();
+                } else {
+                    showNotification(data.message || 'Error en la compra', 'error');
+                }
+            } catch (err) {
+                showNotification('Error de red al comprar', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Confirmar Compra';
+            }
+        }
+
+        async function cargarMisTickets() {
+            try {
+                const res = await fetch(`${API_BASE}/tickets?usuario=${userData.id_usuario}`);
+                const tickets = await res.json();
+                const container = document.getElementById('lista-tickets');
+                container.innerHTML = tickets.length ? '' : '<p>No has comprado tickets todavía.</p>';
+
+                tickets.forEach(tk => {
+                    const card = document.createElement('div');
+                    card.className = 'glass-card';
+                    card.innerHTML = `
+                        <div style="border-left: 4px solid var(--primary-color); padding-left: 1rem;">
+                            <h4 style="margin-bottom: 0.5rem;">Ticket #${tk.id_ticket.substring(0, 8)}</h4>
+                            <p style="font-weight: 600; font-size: 1.1rem; margin-bottom: 0.5rem;">${tk.nombre_evento}</p>
+                            <span class="badge badge-green">${tk.tipo_asiento}</span>
+                            <p style="margin-top: 1rem; font-size: 1.2rem; font-weight: 700;">$${tk.precio}</p>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+            } catch (err) {
+                showNotification('Error al cargar tus tickets', 'error');
+            }
+        }
+
+        document.getElementById('create-event-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button');
+            const nombre = document.getElementById('ev-nombre').value;
+            const fecha = document.getElementById('ev-fecha').value;
+            const capacidad = parseInt(document.getElementById('ev-capacidad').value);
+            const precio = parseFloat(document.getElementById('ev-precio').value);
+
+            btn.disabled = true;
+            btn.textContent = 'Guardando...';
+
+            try {
+                // 1. Crear el Evento
+                const resEvent = await fetch(`${API_BASE}/eventos`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nombre, fecha, capacidad })
+                });
+
+                const eventData = await resEvent.json();
+                if (eventData.status === 'OK') {
+                    // 2. Crear el Tipo de Ticket (General) automáticamente
+                    const resTicket = await fetch(`${API_BASE}/eventos/tipos`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            id_evento: eventData.id_evento,
+                            tipo_asiento: 'General',
+                            cantidad: capacidad,
+                            precio: precio
+                        })
+                    });
+
+                    showNotification('Evento y entradas creados con éxito');
+                    e.target.reset();
+                    toggleCreateForm();
+                    cargarEventos();
+                } else {
+                    showNotification('Error al crear evento', 'error');
+                }
+            } catch (err) {
+                showNotification('Error al conectar con el servidor', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Guardar Evento y Entradas';
+            }
+        };
+
+        function toggleCreateForm() {
+            const section = document.getElementById('create-event-section');
+            const btn = document.getElementById('admin-create-btn');
+            const isHidden = section.style.display === 'none';
+            section.style.display = isHidden ? 'block' : 'none';
+            btn.textContent = isHidden ? 'Cerrar' : '+ Nuevo Evento';
+        }
+
+        function closeModal() { document.getElementById('buy-modal').style.display = 'none'; }
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = 'login.html';
+        }
+
+        // Init
+        cargarEventos();
+    </script>
+</body>
+
+</html>

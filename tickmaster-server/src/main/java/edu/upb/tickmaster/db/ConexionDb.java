@@ -8,6 +8,7 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import org.mindrot.jbcrypt.BCrypt;
 
 public class ConexionDb {
 
@@ -44,19 +45,6 @@ public class ConexionDb {
             // Crear base de datos si no existe
             stmt.execute("CREATE DATABASE IF NOT EXISTS " + DB_NAME);
             stmt.execute("USE " + DB_NAME);
-
-            // -------------------------------------------------------
-            // Eliminar tablas antiguas (en orden correcto de FK)
-            // -------------------------------------------------------
-            stmt.execute("SET FOREIGN_KEY_CHECKS = 0");
-            stmt.execute("DROP TABLE IF EXISTS compras");
-            stmt.execute("DROP TABLE IF EXISTS tickets");
-            stmt.execute("DROP TABLE IF EXISTS tipo_ticket");
-            stmt.execute("DROP TABLE IF EXISTS eventos");
-            stmt.execute("DROP TABLE IF EXISTS usuarios");
-            // tablas del esquema legacy
-            stmt.execute("DROP TABLE IF EXISTS events");
-            stmt.execute("SET FOREIGN_KEY_CHECKS = 1");
 
             // -------------------------------------------------------
             // 1. Tabla USUARIOS
@@ -136,10 +124,12 @@ public class ConexionDb {
         // Usuarios de prueba
         try (ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM usuarios")) {
             if (rs.next() && rs.getInt(1) == 0) {
+                String hashAdmin = BCrypt.hashpw("admin123", BCrypt.gensalt());
+                String hashCliente = BCrypt.hashpw("1234", BCrypt.gensalt());
                 stmt.execute("INSERT INTO usuarios (username, nombre, password, rol) "
-                        + "VALUES ('admin', 'Administrador', 'admin123', 'admin')");
+                        + "VALUES ('admin', 'Administrador', '" + hashAdmin + "', 'admin')");
                 stmt.execute("INSERT INTO usuarios (username, nombre, password, rol) "
-                        + "VALUES ('cliente1', 'Juan Perez', '1234', 'cliente')");
+                        + "VALUES ('cliente1', 'Juan Perez', '" + hashCliente + "', 'cliente')");
                 logger.info("Usuarios iniciales creados.");
             }
         }

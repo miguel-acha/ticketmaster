@@ -44,7 +44,6 @@ public class TicketsHandler implements HttpHandler {
     public void handle(HttpExchange he) throws IOException {
         try {
             Headers responseHeaders = he.getResponseHeaders();
-            responseHeaders.add("Access-Control-Allow-Origin", "*");
             responseHeaders.add("Content-type", ContentType.JSON.toString());
 
             String method = he.getRequestMethod();
