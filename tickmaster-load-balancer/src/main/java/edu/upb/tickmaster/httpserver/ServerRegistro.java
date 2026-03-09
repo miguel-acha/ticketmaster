@@ -25,6 +25,10 @@ public class ServerRegistro extends Thread {
     // Todos los servidores registrados (vía config o dinámico)
     private final Map<String, List<String>> allRegisteredServers = new ConcurrentHashMap<>();
 
+    // Configuración del límite de servidores
+    private static final int MAX_SERVERS = 3;
+    private static final boolean LIMIT_ENABLED = false; // Cambiar a false para desactivar el límite
+
     private ServerRegistro() {
         // Configuramos el hilo como daemon ya que es una funcion de background
         this.setDaemon(true);
@@ -65,6 +69,12 @@ public class ServerRegistro extends Thread {
         activeServers.computeIfAbsent(serviceName, k -> new java.util.concurrent.CopyOnWriteArrayList<>());
 
         if (!allRegisteredServers.get(serviceName).contains(serverUrl)) {
+            // Verificar límite si está activado
+            if (LIMIT_ENABLED && allRegisteredServers.get(serviceName).size() >= MAX_SERVERS) {
+                logger.warn("No se pudo registrar {}: Límite máximo de {} servidores alcanzado para el servicio {}.",
+                        serverUrl, MAX_SERVERS, serviceName);
+                return;
+            }
             allRegisteredServers.get(serviceName).add(serverUrl);
             logger.info("Servidor registrado en [{}]: {}", serviceName, serverUrl);
         }

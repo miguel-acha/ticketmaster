@@ -104,6 +104,7 @@
                 if (data.status === 'OK') {
                     showNotification('¡Bienvenido!');
                     localStorage.setItem('user', JSON.stringify(data));
+                    localStorage.setItem('auth_token', data.token); // Guardar el token para las peticiones
                     setTimeout(() => window.location.href = 'dashboard.html', 1000);
                 } else {
                     showNotification(data.message || 'Error en credenciales', 'error');
@@ -149,8 +150,8 @@
             }
         };
 
-        // Check if already logged in
-        if (localStorage.getItem('user')) {
+        // Check if already logged in (must have both user data and token)
+        if (localStorage.getItem('user') && localStorage.getItem('auth_token')) {
             window.location.href = 'dashboard.html';
         }
     </script>

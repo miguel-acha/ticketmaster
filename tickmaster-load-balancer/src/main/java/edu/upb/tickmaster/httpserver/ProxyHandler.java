@@ -15,12 +15,17 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class ProxyHandler implements HttpHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(ProxyHandler.class);
     private static final int CONNECT_TIMEOUT = 10000;
     private static final int READ_TIMEOUT = 10000;
+
+    private static final AtomicInteger ACTIVE_CONNECTIONS = new AtomicInteger(0);
+    private static final int MAX_CONNECTIONS = 5;
+    private static final boolean CONLIMIT_ENABLED = false; // Cambiar a false para desactivar
 
     static {
         loadInitialRoutes();
@@ -50,53 +55,65 @@ public class ProxyHandler implements HttpHandler {
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
-        String path = exchange.getRequestURI().getPath();
+        int current = ACTIVE_CONNECTIONS.incrementAndGet();
+        try {
+            if (CONLIMIT_ENABLED && current > MAX_CONNECTIONS) {
+                logger.warn("Límite de conexiones alcanzado ({} > {}). Rechazando petición.", current, MAX_CONNECTIONS);
+                exchange.sendResponseHeaders(503, -1); // Service Unavailable
+                exchange.close();
+                return;
+            }
 
-        // Manejar Registro Dinámico
-        if (path.equals("/registrar") && exchange.getRequestMethod().equalsIgnoreCase("POST")) {
-            handleRegistration(exchange);
-            return;
+            String path = exchange.getRequestURI().getPath();
+
+            // Manejar Registro Dinámico
+            if (path.equals("/registrar") && exchange.getRequestMethod().equalsIgnoreCase("POST")) {
+                handleRegistration(exchange);
+                return;
+            }
+
+            // Configurar CORS
+            Headers responseHeaders = exchange.getResponseHeaders();
+            responseHeaders.add("Access-Control-Allow-Origin", "*");
+            responseHeaders.add("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE");
+            responseHeaders.add("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+            // Manejar OPTIONS
+            if (exchange.getRequestMethod().equalsIgnoreCase("OPTIONS")) {
+                exchange.sendResponseHeaders(200, -1);
+                exchange.close();
+                return;
+            }
+
+            // Extraer Prefijo (Isla de Servicio)
+            String cleanPath = path.startsWith("/") ? path.substring(1) : path;
+            String[] pathSegments = cleanPath.split("/", 2);
+
+            if (pathSegments.length < 1 || pathSegments[0].isEmpty()) {
+                exchange.sendResponseHeaders(404, -1);
+                exchange.close();
+                return;
+            }
+
+            String serviceName = pathSegments[0];
+            String backendServerUrl = ServerRegistro.getInstance().getNextServer(serviceName);
+
+            if (backendServerUrl == null) {
+                logger.warn("No hay servidores disponibles para el servicio: {}", serviceName);
+                exchange.sendResponseHeaders(503, -1);
+                exchange.close();
+                return;
+            }
+
+            // Construir URL destino preservando el resto del path y query
+            String remainingPath = (pathSegments.length > 1) ? "/" + pathSegments[1] : "";
+            String query = exchange.getRequestURI().getQuery();
+            String targetUrl = backendServerUrl + remainingPath + (query != null ? "?" + query : "");
+
+            forwardRequest(exchange, targetUrl);
+        } finally {
+            ACTIVE_CONNECTIONS.decrementAndGet();
         }
-
-        // Configurar CORS
-        Headers responseHeaders = exchange.getResponseHeaders();
-        responseHeaders.add("Access-Control-Allow-Origin", "*");
-        responseHeaders.add("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE");
-        responseHeaders.add("Access-Control-Allow-Headers", "Content-Type, Authorization");
-
-        // Manejar OPTIONS
-        if (exchange.getRequestMethod().equalsIgnoreCase("OPTIONS")) {
-            exchange.sendResponseHeaders(200, -1);
-            exchange.close();
-            return;
-        }
-
-        // Extraer Prefijo (Isla de Servicio)
-        String cleanPath = path.startsWith("/") ? path.substring(1) : path;
-        String[] pathSegments = cleanPath.split("/", 2);
-
-        if (pathSegments.length < 1 || pathSegments[0].isEmpty()) {
-            exchange.sendResponseHeaders(404, -1);
-            exchange.close();
-            return;
-        }
-
-        String serviceName = pathSegments[0];
-        String backendServerUrl = ServerRegistro.getInstance().getNextServer(serviceName);
-
-        if (backendServerUrl == null) {
-            logger.warn("No hay servidores disponibles para el servicio: {}", serviceName);
-            exchange.sendResponseHeaders(503, -1);
-            exchange.close();
-            return;
-        }
-
-        // Construir URL destino preservando el resto del path y query
-        String remainingPath = (pathSegments.length > 1) ? "/" + pathSegments[1] : "";
-        String query = exchange.getRequestURI().getQuery();
-        String targetUrl = backendServerUrl + remainingPath + (query != null ? "?" + query : "");
-
-        forwardRequest(exchange, targetUrl);
     }
 
     private void handleRegistration(HttpExchange exchange) throws IOException {

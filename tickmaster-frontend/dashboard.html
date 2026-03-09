@@ -112,9 +112,10 @@
     <script>
         const API_BASE = "http://localhost:1915/servidor";
         let userData = JSON.parse(localStorage.getItem('user'));
+        let authToken = localStorage.getItem('auth_token');
         let selectedEventId = null;
 
-        if (!userData) window.location.href = 'login.html';
+        if (!userData || !authToken) window.location.href = 'login.html';
 
         document.getElementById('user-display').textContent = `Hola, ${userData.nombre}`;
         if (userData.rol === 'admin') {
@@ -143,7 +144,11 @@
 
         async function cargarEventos() {
             try {
-                const res = await fetch(`${API_BASE}/eventos`);
+                const token = localStorage.getItem('auth_token');
+                const res = await fetch(`${API_BASE}/eventos`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.status === 401) return notifyAndLogout();
                 const eventos = await res.json();
                 const container = document.getElementById('lista-eventos');
                 container.innerHTML = eventos.length ? '' : '<p>No hay eventos disponibles.</p>';
@@ -181,7 +186,11 @@
             container.innerHTML = '<p>Buscando tipos de entradas...</p>';
 
             try {
-                const res = await fetch(`${API_BASE}/eventos/tipos?id=${eventId}`);
+                const token = localStorage.getItem('auth_token');
+                const res = await fetch(`${API_BASE}/eventos/tipos?id=${eventId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.status === 401) return notifyAndLogout();
                 const tipos = await res.json();
 
                 if (!tipos.length) {
@@ -214,9 +223,13 @@
             btn.textContent = 'Procesando...';
 
             try {
+                const token = localStorage.getItem('auth_token');
                 const res = await fetch(`${API_BASE}/tickets`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
                     body: JSON.stringify({
                         id_evento: selectedEventId,
                         id_usuario: userData.id_usuario,
@@ -225,6 +238,7 @@
                     })
                 });
 
+                if (res.status === 401) return notifyAndLogout();
                 const data = await res.json();
                 if (data.status === 'OK') {
                     showNotification('¡Compra realizada con éxito! Revisa tu email ficticio.');
@@ -242,7 +256,11 @@
 
         async function cargarMisTickets() {
             try {
-                const res = await fetch(`${API_BASE}/tickets?usuario=${userData.id_usuario}`);
+                const token = localStorage.getItem('auth_token');
+                const res = await fetch(`${API_BASE}/tickets?usuario=${userData.id_usuario}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.status === 401) return notifyAndLogout();
                 const tickets = await res.json();
                 const container = document.getElementById('lista-tickets');
                 container.innerHTML = tickets.length ? '' : '<p>No has comprado tickets todavía.</p>';
@@ -277,19 +295,27 @@
             btn.textContent = 'Guardando...';
 
             try {
+                const token = localStorage.getItem('auth_token');
                 // 1. Crear el Evento
                 const resEvent = await fetch(`${API_BASE}/eventos`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
                     body: JSON.stringify({ nombre, fecha, capacidad })
                 });
 
+                if (resEvent.status === 401) return notifyAndLogout();
                 const eventData = await resEvent.json();
                 if (eventData.status === 'OK') {
                     // 2. Crear el Tipo de Ticket (General) automáticamente
                     const resTicket = await fetch(`${API_BASE}/eventos/tipos`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
                         body: JSON.stringify({
                             id_evento: eventData.id_evento,
                             tipo_asiento: 'General',
@@ -297,6 +323,8 @@
                             precio: precio
                         })
                     });
+
+                    if (resTicket.status === 401) return notifyAndLogout();
 
                     showNotification('Evento y entradas creados con éxito');
                     e.target.reset();
@@ -322,6 +350,14 @@
         }
 
         function closeModal() { document.getElementById('buy-modal').style.display = 'none'; }
+
+        function notifyAndLogout() {
+            showNotification('Sesión expirada o inválida. Redirigiendo...', 'error');
+            setTimeout(() => {
+                localStorage.clear();
+                window.location.href = 'login.html';
+            }, 2000);
+        }
 
         function logout() {
             localStorage.clear();

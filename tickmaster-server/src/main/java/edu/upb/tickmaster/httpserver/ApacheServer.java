@@ -43,9 +43,11 @@ public class ApacheServer {
             });
 
             // Registro de los diferentes servicios de la API
+            AuthFilter authFilter = new AuthFilter();
+
             this.server.createContext("/hola", new EchoPostHandler());
-            this.server.createContext("/eventos", new EventsHandler());
-            this.server.createContext("/tickets", new TicketsHandler());
+            this.server.createContext("/eventos", new EventsHandler()).getFilters().add(authFilter);
+            this.server.createContext("/tickets", new TicketsHandler()).getFilters().add(authFilter);
             this.server.createContext("/health", new HealthCheckHandler());
             this.server.createContext("/usuarios", new UsuariosHandler());
 

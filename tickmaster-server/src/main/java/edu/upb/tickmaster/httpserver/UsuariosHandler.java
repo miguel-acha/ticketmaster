@@ -147,8 +147,15 @@ public class UsuariosHandler implements HttpHandler {
 
             logger.info("Login exitoso: username={}", username);
 
+            // Generar Token JWT
+            String token = JwtUtil.createToken(
+                    usuario.get("id_usuario").getAsInt(),
+                    usuario.get("username").getAsString(),
+                    usuario.get("rol").getAsString());
+
             JsonObject res = new JsonObject();
             res.addProperty("status", "OK");
+            res.addProperty("token", token); // El token para el cliente
             res.addProperty("id_usuario", usuario.get("id_usuario").getAsInt());
             res.addProperty("username", usuario.get("username").getAsString());
             res.addProperty("nombre", usuario.get("nombre").getAsString());
