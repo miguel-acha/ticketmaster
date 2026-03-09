@@ -3,6 +3,7 @@ package edu.upb.tickmaster.server.repositories;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import edu.upb.tickmaster.db.ConexionDb;
+import org.mindrot.jbcrypt.BCrypt;
 
 import java.sql.*;
 
@@ -15,17 +16,18 @@ public class UsuarioRepository {
     }
 
     /**
-     * Registra un nuevo usuario en la base de datos.
+     * Registra un nuevo usuario en la base de datos con contraseña hasheada.
      *
      * @return id generado del usuario
      */
     public int registrar(String username, String nombre, String password, String rol) throws SQLException {
         Connection conn = ConexionDb.getInstance().getConnection();
+        String hashedPassword = BCrypt.hashpw(password, BCrypt.gensalt());
         String sql = "INSERT INTO usuarios (username, nombre, password, rol) VALUES (?, ?, ?, ?)";
         try (PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             pstmt.setString(1, username);
             pstmt.setString(2, nombre);
-            pstmt.setString(3, password);
+            pstmt.setString(3, hashedPassword);
             pstmt.setString(4, rol != null ? rol : "cliente");
             pstmt.executeUpdate();
             try (ResultSet rs = pstmt.getGeneratedKeys()) {

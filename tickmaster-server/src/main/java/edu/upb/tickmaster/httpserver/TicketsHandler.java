@@ -44,7 +44,6 @@ public class TicketsHandler implements HttpHandler {
     public void handle(HttpExchange he) throws IOException {
         try {
             Headers responseHeaders = he.getResponseHeaders();
-            responseHeaders.add("Access-Control-Allow-Origin", "*");
             responseHeaders.add("Content-type", ContentType.JSON.toString());
 
             String method = he.getRequestMethod();
@@ -59,7 +58,7 @@ public class TicketsHandler implements HttpHandler {
             } else if (method.equals("GET")) {
                 handleListarTickets(he);
             } else {
-                sendJson(he, 405, "{\"status\":\"NOK\",\"message\":\"Metodo no soportado\"}");
+                enviarJson(he, 405, "{\"status\":\"NOK\",\"message\":\"Metodo no soportado\"}");
             }
 
         } catch (Exception e) {
@@ -70,10 +69,19 @@ public class TicketsHandler implements HttpHandler {
     // POST /tickets
     private void handleComprarTicket(HttpExchange he) throws IOException {
         String response;
-        try (InputStream is = he.getRequestBody();
-                Scanner scanner = new Scanner(is, StandardCharsets.UTF_8.name())) {
+        try {
+            String body;
+            byte[] cachedBody = (byte[]) he.getAttribute("cached_body");
 
-            String body = scanner.useDelimiter("\\A").hasNext() ? scanner.next() : "";
+            if (cachedBody != null) {
+                body = new String(cachedBody, StandardCharsets.UTF_8);
+            } else {
+                try (InputStream is = he.getRequestBody();
+                        Scanner scanner = new Scanner(is, StandardCharsets.UTF_8.name())) {
+                    body = scanner.useDelimiter("\\A").hasNext() ? scanner.next() : "";
+                }
+            }
+
             JsonObject json = JsonParser.parseString(body).getAsJsonObject();
 
             // --- Idempotencia ---
@@ -85,7 +93,7 @@ public class TicketsHandler implements HttpHandler {
                 JsonObject cached = ticketRepository.findByIdempotencyKey(idempotencyKey);
                 if (cached != null) {
                     logger.info("Idempotencia: key '{}' ya procesada.", idempotencyKey);
-                    sendJson(he, 200, cached.toString());
+                    enviarJson(he, 200, cached.toString());
                     return;
                 }
             }
@@ -99,7 +107,7 @@ public class TicketsHandler implements HttpHandler {
             // Obtener precio del tipo de ticket
             JsonObject tipoTicket = tipoTicketRepository.findById(idTipoTicket);
             if (tipoTicket == null) {
-                sendJson(he, 400, "{\"status\":\"NOK\",\"message\":\"Tipo de ticket no encontrado\"}");
+                enviarJson(he, 400, "{\"status\":\"NOK\",\"message\":\"Tipo de ticket no encontrado\"}");
                 return;
             }
             double precio = tipoTicket.get("precio").getAsDouble();
@@ -125,12 +133,12 @@ public class TicketsHandler implements HttpHandler {
             res.addProperty("precio", precio);
             res.addProperty("message", "Ticket comprado exitosamente");
             response = res.toString();
-            sendJson(he, 200, response);
+            enviarJson(he, 200, response);
 
         } catch (Exception e) {
             logger.error("Error al comprar ticket", e);
             response = "{\"status\":\"NOK\",\"message\":\"Error al comprar ticket: " + e.getMessage() + "\"}";
-            sendJson(he, 500, response);
+            enviarJson(he, 500, response);
         }
     }
 
@@ -154,12 +162,12 @@ public class TicketsHandler implements HttpHandler {
             }
         } catch (Exception e) {
             logger.error("Error al listar tickets", e);
-            sendJson(he, 500, "{\"status\":\"NOK\",\"message\":\"Error al listar tickets\"}");
+            enviarJson(he, 500, "{\"status\":\"NOK\",\"message\":\"Error al listar tickets\"}");
         }
     }
 
-    private void sendJson(HttpExchange he, int code, String body) throws IOException {
-        byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+    private void enviarJson(HttpExchange he, int code, String cuerpo) throws IOException {
+        byte[] bytes = cuerpo.getBytes(StandardCharsets.UTF_8);
         he.sendResponseHeaders(code, bytes.length);
         try (OutputStream os = he.getResponseBody()) {
             os.write(bytes);

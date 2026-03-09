@@ -45,7 +45,6 @@
     </dependencies>
 
     <build>
-
         <plugins>
             <!-- Plugin para ayudar al IDE a encontrar las clases generadas -->
             <plugin>
@@ -88,7 +87,6 @@
                     </execution>
                 </executions>
             </plugin>
-
             <!-- Plugin para ejecutar con mvn exec:java -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>

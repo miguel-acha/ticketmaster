@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  load-balancer:
+    build:
+      context: .
+      dockerfile: tickmaster-load-balancer/Dockerfile
+    container_name: tickmaster-lb
+    ports:
+      - "1915:1915"
+    networks:
+      - tickmaster-net
+
+  server:
+    build:
+      context: .
+      dockerfile: tickmaster-server/Dockerfile
+    environment:
+      # --- CONFIGURACIÓN DE BASE DE DATOS ---
+      - DB_HOST=host.docker.internal
+      - DB_PORT=3306
+      - DB_NAME=tickmaster
+      - DB_USER=root
+      - DB_PASSWORD=1711
+
+      # --- CONFIGURACIÓN DE RED ---
+      - LB_URL=http://load-balancer:1915
+      - SERVICE_NAME=servidor
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - tickmaster-net
+    depends_on:
+      - load-balancer
+
+networks:
+  tickmaster-net:
+    driver: bridge

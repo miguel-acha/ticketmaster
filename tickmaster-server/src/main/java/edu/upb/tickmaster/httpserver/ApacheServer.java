@@ -43,9 +43,11 @@ public class ApacheServer {
             });
 
             // Registro de los diferentes servicios de la API
+            AuthFilter authFilter = new AuthFilter();
+
             this.server.createContext("/hola", new EchoPostHandler());
-            this.server.createContext("/eventos", new EventsHandler());
-            this.server.createContext("/tickets", new TicketsHandler());
+            this.server.createContext("/eventos", new EventsHandler()).getFilters().add(authFilter);
+            this.server.createContext("/tickets", new TicketsHandler()).getFilters().add(authFilter);
             this.server.createContext("/health", new HealthCheckHandler());
             this.server.createContext("/usuarios", new UsuariosHandler());
 
@@ -63,32 +65,54 @@ public class ApacheServer {
     }
 
     private void registrarMe() {
-        try {
-            String lbUrl = System.getenv("LB_URL");
-            if (lbUrl == null)
-                lbUrl = "http://localhost:1915";
+        int maxRetries = 5;
+        int delay = 2000;
+        for (int i = 0; i < maxRetries; i++) {
+            try {
+                String lbUrl = System.getenv("LB_URL");
+                if (lbUrl == null)
+                    lbUrl = "http://localhost:1915";
 
-            String serverName = System.getenv("SERVER_NAME");
-            if (serverName == null)
-                serverName = "localhost";
+                String serverName = System.getenv("SERVER_NAME");
+                if (serverName == null || serverName.isEmpty() || serverName.equals("server")) {
+                    try {
+                        serverName = java.net.InetAddress.getLocalHost().getHostAddress();
+                    } catch (Exception ex) {
+                        serverName = "localhost";
+                    }
+                }
 
-            URL url = new URL(lbUrl + "/registrar");
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setRequestMethod("POST");
-            conn.setRequestProperty("Content-Type", "application/json");
-            conn.setDoOutput(true);
+                String serviceName = System.getenv("SERVICE_NAME");
+                if (serviceName == null)
+                    serviceName = "servidor";
 
-            String json = "{\"ip\": \"" + serverName + "\", \"puerto\": " + PUERTO + "}";
-            try (OutputStream os = conn.getOutputStream()) {
-                os.write(json.getBytes(StandardCharsets.UTF_8));
+                URL url = new URL(lbUrl + "/registrar");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setDoOutput(true);
+
+                String json = "{\"ip\": \"" + serverName + "\", \"puerto\": " + PUERTO + ", \"serviceName\": \""
+                        + serviceName + "\"}";
+                try (OutputStream os = conn.getOutputStream()) {
+                    os.write(json.getBytes(StandardCharsets.UTF_8));
+                }
+
+                if (conn.getResponseCode() == 200) {
+                    logger.info("Servidor registrado con exito en el balanceador en {}", lbUrl);
+                    return; // Éxito
+                }
+            } catch (Exception e) {
+                logger.warn("Intento {} de registro fallido en el balanceador: {}", i + 1, e.getMessage());
             }
-
-            if (conn.getResponseCode() == 200) {
-                logger.info("Servidor registrado con exito en el balanceador en {}", lbUrl);
+            try {
+                Thread.sleep(delay);
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                break;
             }
-        } catch (Exception e) {
-            logger.error("Error al registrarse en el balanceador: " + e.getMessage());
         }
+        logger.error("No se pudo registrar el servidor tras {} intentos", maxRetries);
     }
 
     public void stop() {

@@ -6,6 +6,7 @@ import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import edu.upb.tickmaster.server.repositories.UsuarioRepository;
+import org.mindrot.jbcrypt.BCrypt;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,8 +36,7 @@ public class UsuariosHandler implements HttpHandler {
     public void handle(HttpExchange he) throws IOException {
         try {
             Headers responseHeaders = he.getResponseHeaders();
-            responseHeaders.add("Access-Control-Allow-Origin", "*");
-            responseHeaders.add("Content-type", ContentType.JSON.toString());
+            responseHeaders.set("Content-type", ContentType.JSON.toString());
 
             String path = he.getRequestURI().getPath();
             String method = he.getRequestMethod();
@@ -73,10 +73,15 @@ public class UsuariosHandler implements HttpHandler {
 
     private void handleRegistrar(HttpExchange he) throws IOException {
         String response;
-        try (InputStream is = he.getRequestBody();
-                Scanner scanner = new Scanner(is, StandardCharsets.UTF_8.name())) {
+        try {
+            byte[] requestBody = he.getRequestBody().readAllBytes();
+            String body = new String(requestBody, StandardCharsets.UTF_8);
 
-            String body = scanner.useDelimiter("\\A").hasNext() ? scanner.next() : "";
+            if (body.isEmpty()) {
+                sendJson(he, 400, "{\"status\":\"NOK\",\"message\":\"Cuerpo de peticion vacio\"}");
+                return;
+            }
+
             JsonObject json = JsonParser.parseString(body).getAsJsonObject();
 
             String username = json.get("username").getAsString();
@@ -104,10 +109,15 @@ public class UsuariosHandler implements HttpHandler {
 
     private void handleLogin(HttpExchange he) throws IOException {
         String response;
-        try (InputStream is = he.getRequestBody();
-                Scanner scanner = new Scanner(is, StandardCharsets.UTF_8.name())) {
+        try {
+            byte[] requestBody = he.getRequestBody().readAllBytes();
+            String body = new String(requestBody, StandardCharsets.UTF_8);
 
-            String body = scanner.useDelimiter("\\A").hasNext() ? scanner.next() : "";
+            if (body.isEmpty()) {
+                sendJson(he, 400, "{\"status\":\"NOK\",\"message\":\"Cuerpo de peticion vacio\"}");
+                return;
+            }
+
             JsonObject json = JsonParser.parseString(body).getAsJsonObject();
 
             String username = json.get("username").getAsString();
@@ -115,16 +125,37 @@ public class UsuariosHandler implements HttpHandler {
 
             JsonObject usuario = usuarioRepository.findByUsername(username);
 
-            if (usuario == null || !usuario.get("password").getAsString().equals(password)) {
-                logger.warn("Login fallido para username={}", username);
-                sendJson(he, 401, "{\"status\":\"NOK\",\"message\":\"Credenciales incorrectas\"}");
+            if (usuario == null) {
+                logger.warn("Login fallido: usuario={} no encontrado", username);
+                sendJson(he, 401, "{\"status\":\"NOK\",\"message\":\"Usuario no encontrado\"}");
+                return;
+            }
+
+            try {
+                if (!BCrypt.checkpw(password, usuario.get("password").getAsString())) {
+                    logger.warn("Login fallido para username={}: contraseña incorrecta", username);
+                    sendJson(he, 401, "{\"status\":\"NOK\",\"message\":\"Contraseña incorrecta\"}");
+                    return;
+                }
+            } catch (IllegalArgumentException e) {
+                logger.error("Error de hash para usuario={}: {}. Probablemente password en texto plano.", username,
+                        e.getMessage());
+                sendJson(he, 401,
+                        "{\"status\":\"NOK\",\"message\":\"Error de seguridad: su cuenta requiere actualizar contraseña (hash incompatible)\"}");
                 return;
             }
 
             logger.info("Login exitoso: username={}", username);
 
+            // Generar Token JWT
+            String token = JwtUtil.createToken(
+                    usuario.get("id_usuario").getAsInt(),
+                    usuario.get("username").getAsString(),
+                    usuario.get("rol").getAsString());
+
             JsonObject res = new JsonObject();
             res.addProperty("status", "OK");
+            res.addProperty("token", token); // El token para el cliente
             res.addProperty("id_usuario", usuario.get("id_usuario").getAsInt());
             res.addProperty("username", usuario.get("username").getAsString());
             res.addProperty("nombre", usuario.get("nombre").getAsString());
