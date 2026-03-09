@@ -72,8 +72,13 @@ public class ApacheServer {
                     lbUrl = "http://localhost:1915";
 
                 String serverName = System.getenv("SERVER_NAME");
-                if (serverName == null)
-                    serverName = "localhost";
+                if (serverName == null || serverName.isEmpty() || serverName.equals("server")) {
+                    try {
+                        serverName = java.net.InetAddress.getLocalHost().getHostAddress();
+                    } catch (Exception ex) {
+                        serverName = "localhost";
+                    }
+                }
 
                 String serviceName = System.getenv("SERVICE_NAME");
                 if (serviceName == null)

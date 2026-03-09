@@ -34,7 +34,8 @@ public class ProxyHandler implements HttpHandler {
                 for (String serviceName : props.stringPropertyNames()) {
                     String urls = props.getProperty(serviceName);
                     for (String url : urls.split(",")) {
-                        ServerRegistro.add(serviceName, url.trim());
+
+                        ServerRegistro.getInstance().add(serviceName, url.trim());
                     }
                 }
                 logger.info("Rutas iniciales cargadas desde properties");
@@ -81,7 +82,7 @@ public class ProxyHandler implements HttpHandler {
         }
 
         String serviceName = pathSegments[0];
-        String backendServerUrl = ServerRegistro.getNextServer(serviceName);
+        String backendServerUrl = ServerRegistro.getInstance().getNextServer(serviceName);
 
         if (backendServerUrl == null) {
             logger.warn("No hay servidores disponibles para el servicio: {}", serviceName);
@@ -107,7 +108,7 @@ public class ProxyHandler implements HttpHandler {
             String ip = json.get("ip").getAsString();
             int puerto = json.get("puerto").getAsInt();
 
-            ServerRegistro.add(serviceName, ip, puerto);
+            ServerRegistro.getInstance().add(serviceName, ip, puerto);
 
             String response = "{\"status\": \"registrado\", \"servicio\": \"" + serviceName + "\"}";
             byte[] responseBytes = response.getBytes(StandardCharsets.UTF_8);

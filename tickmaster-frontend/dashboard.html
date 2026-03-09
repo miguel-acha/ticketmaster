@@ -110,7 +110,7 @@
     </div>
 
     <script>
-        const API_BASE = "http://localhost:1915";
+        const API_BASE = "http://localhost:1915/servidor";
         let userData = JSON.parse(localStorage.getItem('user'));
         let selectedEventId = null;
 
@@ -221,7 +221,7 @@
                         id_evento: selectedEventId,
                         id_usuario: userData.id_usuario,
                         id_tipo_ticket: parseInt(tipoId),
-                        idempotency_key: 'KEY-' + Date.now()
+                        idempotency_key: 'KEY-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now()
                     })
                 });
 

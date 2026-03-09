@@ -49,3 +49,5 @@ public class Main {
 }
 
 // mvn exec:java -pl tickmaster-server
+
+// .\run-projects.ps1

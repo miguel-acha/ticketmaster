@@ -13,10 +13,13 @@ import org.mindrot.jbcrypt.BCrypt;
 public class ConexionDb {
 
     private static final Logger logger = LoggerFactory.getLogger(ConexionDb.class);
-    private static final String SERVER_URL = "jdbc:mariadb://localhost:3306/";
-    private static final String DB_NAME = "tickmaster";
-    private static final String USER = "root";
-    private static final String PASSWORD = "1711";
+    private static final String DB_HOST = System.getenv("DB_HOST") != null ? System.getenv("DB_HOST") : "localhost";
+    private static final String DB_PORT = System.getenv("DB_PORT") != null ? System.getenv("DB_PORT") : "3306";
+    private static final String DB_NAME = System.getenv("DB_NAME") != null ? System.getenv("DB_NAME") : "tickmaster";
+    private static final String USER = System.getenv("DB_USER") != null ? System.getenv("DB_USER") : "root";
+    private static final String PASSWORD = System.getenv("DB_PASSWORD") != null ? System.getenv("DB_PASSWORD") : "1711";
+
+    private static final String SERVER_URL = "jdbc:mariadb://" + DB_HOST + ":" + DB_PORT + "/";
 
     private static ConexionDb db;
     private Connection connection;
