@@ -14,7 +14,8 @@ public class ProtoServer {
     public void start() throws IOException, InterruptedException {
         Server server = ServerBuilder.forPort(8081)
                 .addService(new ProductoServiceImpl())
-                .addService(new TicketServiceImpl()) // Servicio de compra de tickets
+                .addService(new UsuarioServiceImpl()) // Servicio de usuarios
+                .addService(new TicketServiceImpl()) // Servicio de compra de tickets y eventos
                 .addService(ProtoReflectionService.newInstance())
                 .build();
 

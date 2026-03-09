@@ -7,16 +7,31 @@ option java_multiple_files = true;
 package tickmaster;
 
 
-// ============ SERVICIO DE PRODUCTOS (ya existente) ============
+// ============ SERVICIO DE PRODUCTOS ============
 service ProductoService {
   rpc registrarProducto (ProductoRequest) returns (ProductoResponse);
   rpc obtenerProducto (IdRequest) returns (ProductoRequest);
 }
 
-// ============ SERVICIO DE TICKETS ============
+// ============ SERVICIO DE USUARIOS ============
+service UsuarioService {
+  rpc RegistrarUsuario (RegistrarUsuarioRequest) returns (RegistrarUsuarioResponse);
+  rpc LoginUsuario (LoginRequest) returns (LoginResponse);
+}
+
+// ============ SERVICIO DE TICKETS Y EVENTOS ============
 service TicketService {
-  rpc ComprarTicket (ComprarTicketRequest) returns (ComprarTicketResponse);
+  // Eventos
+  rpc CrearEvento (CrearEventoRequest) returns (CrearEventoResponse);
   rpc ObtenerEventos (VacioRequest) returns (ListaEventosResponse);
+  
+  // Tipos de Ticket
+  rpc CrearTipoTicket (CrearTipoTicketRequest) returns (CrearTipoTicketResponse);
+  rpc ObtenerTiposTicket (IdIntRequest) returns (ListaTiposTicketResponse);
+
+  // Tickets
+  rpc ComprarTicket (ComprarTicketRequest) returns (ComprarTicketResponse);
+  rpc ListarTicketsUsuario (IdIntRequest) returns (ListaTicketsResponse);
 }
 
 
@@ -47,7 +62,77 @@ message IdRequest {
   string id = 1;
 }
 
-// ---------- Mensajes de Ticket ----------
+message IdIntRequest {
+  int32 id = 1;
+}
+
+// ---------- Mensajes de Usuario ----------
+message RegistrarUsuarioRequest {
+  string username = 1;
+  string nombre = 2;
+  string password = 3;
+  string rol = 4;
+}
+
+message RegistrarUsuarioResponse {
+  string status = 1;
+  int32 id_usuario = 2;
+  string message = 3;
+}
+
+message LoginRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  string status = 1;
+  string token = 2;
+  int32 id_usuario = 3;
+  string username = 4;
+  string nombre = 5;
+  string rol = 6;
+  string message = 7;
+}
+
+// ---------- Mensajes de Ticket / Evento ----------
+message CrearEventoRequest {
+  string nombre = 1;
+  string fecha = 2;
+  int32 capacidad = 3;
+}
+
+message CrearEventoResponse {
+  string status = 1;
+  int32 id_evento = 2;
+  string message = 3;
+}
+
+message CrearTipoTicketRequest {
+  int32 id_evento = 1;
+  string tipo_asiento = 2;
+  int32 cantidad = 3;
+  double precio = 4;
+}
+
+message CrearTipoTicketResponse {
+  string status = 1;
+  int32 id_tipo_ticket = 2;
+  string message = 3;
+}
+
+message TipoTicket {
+  int32 id_tipo_ticket = 1;
+  int32 id_evento = 2;
+  string tipo_asiento = 3;
+  int32 cantidad = 4;
+  double precio = 5;
+}
+
+message ListaTiposTicketResponse {
+  repeated TipoTicket tipos = 1;
+}
+
 message ComprarTicketRequest {
   int32  event_id        = 1;
   int32  user_id         = 2;
@@ -74,4 +159,16 @@ message Evento {
 
 message ListaEventosResponse {
   repeated Evento eventos = 1;
+}
+
+message Ticket {
+  string id_ticket = 1;
+  int32 id_evento = 2;
+  int32 id_usuario = 3;
+  string nro_asiento = 4;
+  double precio = 5;
+}
+
+message ListaTicketsResponse {
+  repeated Ticket tickets = 1;
 }

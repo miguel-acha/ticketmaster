@@ -144,4 +144,92 @@ public class TicketServiceImpl extends TicketServiceGrpc.TicketServiceImplBase {
             responseObserver.onCompleted();
         }
     }
+
+    @Override
+    public void crearEvento(CrearEventoRequest request, StreamObserver<CrearEventoResponse> responseObserver) {
+        try {
+            int id = eventoRepository.crearEvento(request.getNombre(), request.getFecha(), request.getCapacidad());
+            responseObserver.onNext(CrearEventoResponse.newBuilder()
+                    .setStatus("OK")
+                    .setIdEvento(id)
+                    .setMessage("Evento creado exitosamente")
+                    .build());
+            responseObserver.onCompleted();
+        } catch (Exception e) {
+            responseObserver.onNext(CrearEventoResponse.newBuilder()
+                    .setStatus("NOK")
+                    .setMessage(e.getMessage())
+                    .build());
+            responseObserver.onCompleted();
+        }
+    }
+
+    @Override
+    public void crearTipoTicket(CrearTipoTicketRequest request,
+            StreamObserver<CrearTipoTicketResponse> responseObserver) {
+        try {
+            int id = tipoTicketRepository.crear(request.getIdEvento(), request.getTipoAsiento(), request.getCantidad(),
+                    request.getPrecio());
+            responseObserver.onNext(CrearTipoTicketResponse.newBuilder()
+                    .setStatus("OK")
+                    .setIdTipoTicket(id)
+                    .setMessage("Tipo de ticket creado exitosamente")
+                    .build());
+            responseObserver.onCompleted();
+        } catch (Exception e) {
+            responseObserver.onNext(CrearTipoTicketResponse.newBuilder()
+                    .setStatus("NOK")
+                    .setMessage(e.getMessage())
+                    .build());
+            responseObserver.onCompleted();
+        }
+    }
+
+    @Override
+    public void obtenerTiposTicket(IdIntRequest request, StreamObserver<ListaTiposTicketResponse> responseObserver) {
+        try {
+            JsonArray tiposJson = tipoTicketRepository.listarPorEvento(request.getId());
+            ListaTiposTicketResponse.Builder builder = ListaTiposTicketResponse.newBuilder();
+
+            for (int i = 0; i < tiposJson.size(); i++) {
+                JsonObject t = tiposJson.get(i).getAsJsonObject();
+                builder.addTipos(TipoTicket.newBuilder()
+                        .setIdTipoTicket(t.get("id_tipo_ticket").getAsInt())
+                        .setIdEvento(t.get("id_evento").getAsInt())
+                        .setTipoAsiento(t.get("tipo_asiento").getAsString())
+                        .setCantidad(t.get("cantidad").getAsInt())
+                        .setPrecio(t.get("precio").getAsDouble())
+                        .build());
+            }
+            responseObserver.onNext(builder.build());
+            responseObserver.onCompleted();
+        } catch (Exception e) {
+            responseObserver.onNext(ListaTiposTicketResponse.newBuilder().build());
+            responseObserver.onCompleted();
+        }
+    }
+
+    @Override
+    public void listarTicketsUsuario(IdIntRequest request, StreamObserver<ListaTicketsResponse> responseObserver) {
+        try {
+            JsonArray ticketsJson = ticketRepository.listarPorUsuario(request.getId());
+            ListaTicketsResponse.Builder builder = ListaTicketsResponse.newBuilder();
+
+            for (int i = 0; i < ticketsJson.size(); i++) {
+                JsonObject t = ticketsJson.get(i).getAsJsonObject();
+                builder.addTickets(Ticket.newBuilder()
+                        .setIdTicket(t.get("id_ticket").getAsString())
+                        .setIdEvento(t.get("id_evento").getAsInt())
+                        .setIdUsuario(t.get("id_usuario").getAsInt())
+                        .setNroAsiento(t.get("nro_asiento").getAsString())
+                        .setPrecio(t.get("precio").getAsDouble())
+                        .build());
+            }
+            responseObserver.onNext(builder.build());
+            responseObserver.onCompleted();
+        } catch (Exception e) {
+            responseObserver.onNext(ListaTicketsResponse.newBuilder().build());
+            responseObserver.onCompleted();
+        }
+    }
 }
