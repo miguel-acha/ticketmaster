@@ -74,9 +74,9 @@ public class ProxyHandler implements HttpHandler {
 
             // Configurar CORS
             Headers responseHeaders = exchange.getResponseHeaders();
-            responseHeaders.add("Access-Control-Allow-Origin", "*");
-            responseHeaders.add("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE");
-            responseHeaders.add("Access-Control-Allow-Headers", "Content-Type, Authorization");
+            responseHeaders.set("Access-Control-Allow-Origin", "*");
+            responseHeaders.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE");
+            responseHeaders.set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Integrity-Check");
 
             // Manejar OPTIONS
             if (exchange.getRequestMethod().equalsIgnoreCase("OPTIONS")) {

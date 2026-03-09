@@ -28,7 +28,7 @@ public class AuthFilter extends Filter {
         String authHeader = exchange.getRequestHeaders().getFirst("Authorization");
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            sendError(exchange, 401, "Se requiere token de autenticacion");
+            enviarError(exchange, 401, "Se requiere token de autenticacion");
             return;
         }
 
@@ -36,7 +36,7 @@ public class AuthFilter extends Filter {
         DecodedJWT decoded = JwtUtil.verifyToken(token);
 
         if (decoded == null) {
-            sendError(exchange, 401, "Token invalido o expirado");
+            enviarError(exchange, 401, "Token invalido o expirado");
             return;
         }
 
@@ -44,6 +44,27 @@ public class AuthFilter extends Filter {
         exchange.setAttribute("id_usuario", decoded.getClaim("id_usuario").asInt());
         exchange.setAttribute("rol", decoded.getClaim("rol").asString());
         exchange.setAttribute("username", decoded.getSubject());
+
+        // validacion de hmac
+        String integrityHeader = exchange.getRequestHeaders().getFirst("X-Integrity-Check");
+        if (integrityHeader != null) {
+            try {
+                // Leer el cuerpo para validar integridad
+                byte[] bodyBytes = exchange.getRequestBody().readAllBytes();
+
+                if (!IntegrityUtil.verificarFirma(bodyBytes, integrityHeader)) {
+                    enviarError(exchange, 403, "Falla de integridad: El mensaje ha sido alterado");
+                    return;
+                }
+
+                // Guardamos el cuerpo para que el Handler no tenga que leer un stream vacio
+                exchange.setAttribute("cached_body", bodyBytes);
+            } catch (Exception e) {
+                logger.error("Error validando integridad: {}", e.getMessage());
+                enviarError(exchange, 400, "Error procesando integridad del mensaje");
+                return;
+            }
+        }
 
         chain.doFilter(exchange);
     }
@@ -53,7 +74,7 @@ public class AuthFilter extends Filter {
         return "Filtro de autenticacion JWT";
     }
 
-    private void sendError(HttpExchange exchange, int code, String message) throws IOException {
+    private void enviarError(HttpExchange exchange, int code, String message) throws IOException {
         String json = "{\"status\":\"NOK\",\"message\":\"" + message + "\"}";
         byte[] response = json.getBytes(StandardCharsets.UTF_8);
         exchange.getResponseHeaders().set("Content-Type", "application/json");

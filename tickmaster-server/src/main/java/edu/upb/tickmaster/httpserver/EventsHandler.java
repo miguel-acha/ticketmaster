@@ -57,7 +57,7 @@ public class EventsHandler implements HttpHandler {
                 } else if (method.equals("GET")) {
                     handleListarTiposTicket(he);
                 } else {
-                    sendJson(he, 405, "{\"status\":\"NOK\",\"message\":\"Metodo no soportado\"}");
+                    enviarJson(he, 405, "{\"status\":\"NOK\",\"message\":\"Metodo no soportado\"}");
                 }
                 return;
             }
@@ -68,7 +68,7 @@ public class EventsHandler implements HttpHandler {
             } else if (method.equals("GET")) {
                 handleListarEventos(he);
             } else {
-                sendJson(he, 405, "{\"status\":\"NOK\",\"message\":\"Metodo no soportado\"}");
+                enviarJson(he, 405, "{\"status\":\"NOK\",\"message\":\"Metodo no soportado\"}");
             }
 
         } catch (Exception e) {
@@ -78,10 +78,18 @@ public class EventsHandler implements HttpHandler {
 
     // POST /eventos
     private void handleCrearEvento(HttpExchange he) throws IOException {
-        try (InputStream is = he.getRequestBody();
-                Scanner scanner = new Scanner(is, StandardCharsets.UTF_8.name())) {
+        try {
+            String body;
+            byte[] cachedBody = (byte[]) he.getAttribute("cached_body");
+            if (cachedBody != null) {
+                body = new String(cachedBody, StandardCharsets.UTF_8);
+            } else {
+                try (InputStream is = he.getRequestBody();
+                        Scanner scanner = new Scanner(is, StandardCharsets.UTF_8.name())) {
+                    body = scanner.useDelimiter("\\A").hasNext() ? scanner.next() : "";
+                }
+            }
 
-            String body = scanner.useDelimiter("\\A").hasNext() ? scanner.next() : "";
             JsonObject json = JsonParser.parseString(body).getAsJsonObject();
 
             String nombre = json.get("nombre").getAsString();
@@ -96,11 +104,11 @@ public class EventsHandler implements HttpHandler {
             res.addProperty("status", "OK");
             res.addProperty("id_evento", id);
             res.addProperty("message", "Evento creado exitosamente");
-            sendJson(he, 200, res.toString());
+            enviarJson(he, 200, res.toString());
 
         } catch (Exception e) {
             logger.error("Error al crear evento", e);
-            sendJson(he, 500, "{\"status\":\"NOK\",\"message\":\"Error al crear evento: " + e.getMessage() + "\"}");
+            enviarJson(he, 500, "{\"status\":\"NOK\",\"message\":\"Error al crear evento: " + e.getMessage() + "\"}");
         }
     }
 
@@ -115,16 +123,24 @@ public class EventsHandler implements HttpHandler {
             }
         } catch (Exception e) {
             logger.error("Error al listar eventos", e);
-            sendJson(he, 500, "{\"status\":\"NOK\",\"message\":\"Error al listar eventos\"}");
+            enviarJson(he, 500, "{\"status\":\"NOK\",\"message\":\"Error al listar eventos\"}");
         }
     }
 
     // POST /eventos/tipos
     private void handleCrearTipoTicket(HttpExchange he) throws IOException {
-        try (InputStream is = he.getRequestBody();
-                Scanner scanner = new Scanner(is, StandardCharsets.UTF_8.name())) {
+        try {
+            String body;
+            byte[] cachedBody = (byte[]) he.getAttribute("cached_body");
+            if (cachedBody != null) {
+                body = new String(cachedBody, StandardCharsets.UTF_8);
+            } else {
+                try (InputStream is = he.getRequestBody();
+                        Scanner scanner = new Scanner(is, StandardCharsets.UTF_8.name())) {
+                    body = scanner.useDelimiter("\\A").hasNext() ? scanner.next() : "";
+                }
+            }
 
-            String body = scanner.useDelimiter("\\A").hasNext() ? scanner.next() : "";
             JsonObject json = JsonParser.parseString(body).getAsJsonObject();
 
             int idEvento = json.get("id_evento").getAsInt();
@@ -140,11 +156,11 @@ public class EventsHandler implements HttpHandler {
             res.addProperty("status", "OK");
             res.addProperty("id_tipo_ticket", id);
             res.addProperty("message", "Tipo de ticket creado exitosamente");
-            sendJson(he, 200, res.toString());
+            enviarJson(he, 200, res.toString());
 
         } catch (Exception e) {
             logger.error("Error al crear tipo de ticket", e);
-            sendJson(he, 500, "{\"status\":\"NOK\",\"message\":\"Error: " + e.getMessage() + "\"}");
+            enviarJson(he, 500, "{\"status\":\"NOK\",\"message\":\"Error: " + e.getMessage() + "\"}");
         }
     }
 
@@ -165,12 +181,12 @@ public class EventsHandler implements HttpHandler {
             }
         } catch (Exception e) {
             logger.error("Error al listar tipos de ticket", e);
-            sendJson(he, 500, "{\"status\":\"NOK\",\"message\":\"Error al listar tipos de ticket\"}");
+            enviarJson(he, 500, "{\"status\":\"NOK\",\"message\":\"Error al listar tipos de ticket\"}");
         }
     }
 
-    private void sendJson(HttpExchange he, int code, String body) throws IOException {
-        byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+    private void enviarJson(HttpExchange he, int code, String cuerpo) throws IOException {
+        byte[] bytes = cuerpo.getBytes(StandardCharsets.UTF_8);
         he.sendResponseHeaders(code, bytes.length);
         try (OutputStream os = he.getResponseBody()) {
             os.write(bytes);

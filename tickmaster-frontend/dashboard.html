@@ -142,6 +142,26 @@
             if (tabId === 'mis-tickets-tab') cargarMisTickets();
         }
 
+        // funcion de integridad HMACSHA256
+        async function firmarMensaje(mensaje) {
+            const encoder = new TextEncoder();
+            const datos = encoder.encode(mensaje);
+            const datosClave = encoder.encode("miguel123");
+
+            // Importar la clave para HMAC
+            const cryptoKey = await window.crypto.subtle.importKey(
+                "raw", datosClave,
+                { name: "HMAC", hash: { name: "SHA-256" } },
+                false, ["sign"]
+            );
+
+            // Firmar el mensaje
+            const firma = await window.crypto.subtle.sign("HMAC", cryptoKey, datos);
+
+            // Convertir de ArrayBuffer a Base64
+            return btoa(String.fromCharCode(...new Uint8Array(firma)));
+        }
+
         async function cargarEventos() {
             try {
                 const token = localStorage.getItem('auth_token');
@@ -224,22 +244,33 @@
 
             try {
                 const token = localStorage.getItem('auth_token');
+                const body = JSON.stringify({
+                    id_evento: selectedEventId,
+                    id_usuario: userData.id_usuario,
+                    id_tipo_ticket: parseInt(tipoId),
+                    idempotency_key: 'KEY-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now()
+                });
+                const firma = await firmarMensaje(body);
+
                 const res = await fetch(`${API_BASE}/tickets`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
+                        'Authorization': `Bearer ${token}`,
+                        'X-Integrity-Check': firma
                     },
-                    body: JSON.stringify({
-                        id_evento: selectedEventId,
-                        id_usuario: userData.id_usuario,
-                        id_tipo_ticket: parseInt(tipoId),
-                        idempotency_key: 'KEY-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now()
-                    })
+                    body: body
                 });
 
                 if (res.status === 401) return notifyAndLogout();
+
                 const data = await res.json();
+
+                if (res.status === 403) {
+                    showNotification('¡ALERTA DE SEGURIDAD! El mensaje ha sido alterado o la firma es inválida.', 'error');
+                    return;
+                }
+
                 if (data.status === 'OK') {
                     showNotification('¡Compra realizada con éxito! Revisa tu email ficticio.');
                     closeModal();
@@ -296,32 +327,48 @@
 
             try {
                 const token = localStorage.getItem('auth_token');
+
                 // 1. Crear el Evento
+                const eventBody = JSON.stringify({ nombre, fecha, capacidad });
+                const firmaEvento = await firmarMensaje(eventBody);
+
                 const resEvent = await fetch(`${API_BASE}/eventos`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
+                        'Authorization': `Bearer ${token}`,
+                        'X-Integrity-Check': firmaEvento
                     },
-                    body: JSON.stringify({ nombre, fecha, capacidad })
+                    body: eventBody
                 });
 
                 if (resEvent.status === 401) return notifyAndLogout();
+
                 const eventData = await resEvent.json();
+
+                if (resEvent.status === 403) {
+                    showNotification('¡Error de Integridad! No se pudo crear el evento.', 'error');
+                    return;
+                }
+
                 if (eventData.status === 'OK') {
                     // 2. Crear el Tipo de Ticket (General) automáticamente
+                    const ticketBody = JSON.stringify({
+                        id_evento: eventData.id_evento,
+                        tipo_asiento: 'General',
+                        cantidad: capacidad,
+                        precio: precio
+                    });
+                    const firmaTicket = await firmarMensaje(ticketBody);
+
                     const resTicket = await fetch(`${API_BASE}/eventos/tipos`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`
+                            'Authorization': `Bearer ${token}`,
+                            'X-Integrity-Check': firmaTicket
                         },
-                        body: JSON.stringify({
-                            id_evento: eventData.id_evento,
-                            tipo_asiento: 'General',
-                            cantidad: capacidad,
-                            precio: precio
-                        })
+                        body: ticketBody
                     });
 
                     if (resTicket.status === 401) return notifyAndLogout();
@@ -363,6 +410,27 @@
             localStorage.clear();
             window.location.href = 'login.html';
         }
+
+        /* 
+         * 
+         * async function probarAtaque() {
+         *     const token = localStorage.getItem('auth_token');
+         *     const cuerpo = JSON.stringify({ id_evento: 1, id_usuario: 1, id_tipo_ticket: 1, idempotency_key: 'ATAQUE-TEST' });
+         *     
+         *     const res = await fetch("http://localhost:1915/servidor/tickets", {
+         *         method: 'POST',
+         *         headers: {
+         *             'Content-Type': 'application/json',
+         *             'Authorization': `Bearer ${token}`,
+         *             'X-Integrity-Check': 'firmafalsa' // Firma falsa
+         *         },
+         *         body: cuerpo
+         *     });
+         *     
+         *     const data = await res.json();
+         *     console.log("Respuesta (debería ser 403):", res.status, data);
+         * }
+         */
 
         // Init
         cargarEventos();
