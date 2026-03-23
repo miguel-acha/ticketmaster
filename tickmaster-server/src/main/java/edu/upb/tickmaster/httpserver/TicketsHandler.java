@@ -87,16 +87,18 @@ public class TicketsHandler implements HttpHandler {
                     body = scanner.useDelimiter("\\A").hasNext() ? scanner.next() : "";
                 }
             }
+            logger.info("[TRACE] Cuerpo de petición recibido ({} bytes). Iniciando validación...", body.length());
 
             JsonObject json = JsonParser.parseString(body).getAsJsonObject();
 
             int idUsuario = json.get("id_usuario").getAsInt();
             JsonArray carrito = json.getAsJsonArray("carrito");
-            // orden_id agrupa las compras del mismo carrito; idempotency_key sigue siendo
-            // unico por ticket
             String ordenId = "ORD-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+            logger.info("[TRACE] Iniciando procesamiento de orden {} para usuario {}", ordenId, idUsuario);
+            logger.info("[TRACE] Analizando carrito: Usuario={}, Orden={}, Items={}", idUsuario, ordenId, (carrito != null ? carrito.size() : 0));
 
             if (carrito == null || carrito.size() == 0) {
+                logger.warn("[TRACE] Intento de compra con carrito vacío.");
                 enviarJson(he, 400, "{\"status\":\"NOK\",\"message\":\"El carrito esta vacio\"}");
                 return;
             }
@@ -123,9 +125,11 @@ public class TicketsHandler implements HttpHandler {
 
                         int idEventoReal = tipoTicket.get("id_evento").getAsInt();
                         double precio = tipoTicket.get("precio").getAsDouble();
+                        logger.info("[TRACE] Reservando stock: ID={}, Cantidad={}, Precio={}", idTipoTicket, cantidad, precio);
 
                         logger.info("Reserva Stock (Pesimista): TicketType={}, Cantidad={}", idTipoTicket, cantidad);
                         tipoTicketRepository.decrementarDisponibilidadConBloqueo(conn, idTipoTicket, cantidad);
+                        logger.info("[TRACE] Stock decrementado en DB.");
 
                         montoTotal += (precio * cantidad);
                         for (int c = 0; c < cantidad; c++) {
@@ -136,7 +140,9 @@ public class TicketsHandler implements HttpHandler {
                             ticketsAComprar.add(tItem);
                         }
                     }
+                    logger.info("[TRACE] Fase de reserva completada. Committing stock...");
                     conn.commit(); // Soltamos el stock reservado para este hilo
+                    logger.info("[TRACE] Commit de stock exitoso.");
                 } catch (Exception e) {
                     conn.rollback();
                     throw e;
@@ -151,15 +157,13 @@ public class TicketsHandler implements HttpHandler {
                 String pasarelaUrl = System.getenv("PASARELA_URL") != null ? System.getenv("PASARELA_URL") : "http://localhost:1916/cobrar";
                 String callbackUrl = System.getenv("CALLBACK_URL") != null ? System.getenv("CALLBACK_URL") : "http://localhost:1914/webhook/pago";
 
-                logger.info("Iniciando fase de pago ASÍNCRONO por {} para usuario {}", montoTotal, idUsuario);
+                logger.info("[TRACE] Contactando pasarela: {} con monto: {}", pasarelaUrl, montoTotal);
                 JsonObject pasarelaBody = new JsonObject();
                 pasarelaBody.addProperty("id_usuario", idUsuario);
                 pasarelaBody.addProperty("monto", montoTotal);
                 pasarelaBody.addProperty("orden_id", ordenId);
-                // URL de este servidor para recibir el webhook
                 pasarelaBody.addProperty("callback_url", callbackUrl);
 
-                logger.info("Enviando petición a pasarela: {} con callback: {}", pasarelaUrl, callbackUrl);
                 URL url = new URL(pasarelaUrl);
                 HttpURLConnection httpConn = (HttpURLConnection) url.openConnection();
                 httpConn.setRequestMethod("POST");
@@ -172,6 +176,7 @@ public class TicketsHandler implements HttpHandler {
                 }
                 
                 int respCode = httpConn.getResponseCode();
+                logger.info("[TRACE] Respuesta Pasarela: HTTP {}", respCode);
                 peticionPasarelaOK = (respCode == 202 || respCode == 200);
                 if (!peticionPasarelaOK) {
                     logger.warn("Pasarela (en {}) rechazó la petición: HTTP {}", pasarelaUrl, respCode);
@@ -187,6 +192,7 @@ public class TicketsHandler implements HttpHandler {
                 try {
                     conn.setAutoCommit(false);
                     if (peticionPasarelaOK) {
+                        logger.info("[TRACE] Pasarela aceptó la orden. Registrando tickets como PENDIENTE...");
                         // Registrar tickets y compras pero con estado PENDIENTE
                         JsonArray purchasedTicketIds = new JsonArray();
                         for (JsonObject tk : ticketsAComprar) {
@@ -201,7 +207,9 @@ public class TicketsHandler implements HttpHandler {
                                     ordenId, "pendiente");
                             purchasedTicketIds.add(ticketId);
                         }
+                        logger.info("[TRACE] {} tickets registrados en DB. Confirmando transacción...", ticketsAComprar.size());
                         conn.commit();
+                        logger.info("[TRACE] Transacción finalizada. Webhook esperado.");
                         logger.info("Pedido registrado como PENDIENTE. Esperando webhook...");
                         JsonObject res = new JsonObject();
                         res.addProperty("status", "PENDING");

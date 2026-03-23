@@ -49,7 +49,7 @@ public class PagoHandler implements HttpHandler {
             String callbackUrl = json.has("callback_url") ? json.get("callback_url").getAsString() : null;
             String transactionId = "TXN-" + System.currentTimeMillis();
 
-            logger.info("Recibida peticion de cobro: Usuario={}, Monto={}, OrdenId={}, TransactionId={}", idUsuario, monto, ordenId, transactionId);
+            logger.info("[TRACE] Recibida petición de cobro: Usuario={}, Monto={}, OrdenId={}, TransactionId={}", idUsuario, monto, ordenId, transactionId);
 
             // Responder inmediatamente: 202 Accepted (Patrón Asíncrono)
             JsonObject res = new JsonObject();
@@ -73,7 +73,7 @@ public class PagoHandler implements HttpHandler {
     }
 
     private void enviarWebhook(String callbackUrl, String transactionId, String idUsuario, double monto, String ordenId) {
-        logger.info("Enviando webhook a {} para transaccion {}", callbackUrl, transactionId);
+        logger.info("[TRACE] Iniciando envío de Webhook a: {} para orden: {}", callbackUrl, ordenId);
         try {
             JsonObject webhookData = new JsonObject();
             webhookData.addProperty("transaction_id", transactionId);
@@ -94,7 +94,7 @@ public class PagoHandler implements HttpHandler {
             }
 
             int responseCode = conn.getResponseCode();
-            logger.info("Webhook enviado exitosamente. Respuesta del servidor: {}", responseCode);
+            logger.info("[TRACE] Webhook enviado exitosamente. Respuesta del servidor: HTTP {}", responseCode);
         } catch (Exception e) {
             logger.error("Error al enviar webhook a {}: {}", callbackUrl, e.getMessage());
         }

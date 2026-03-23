@@ -27,23 +27,25 @@ public class WebhookHandler implements HttpHandler {
         }
 
         try {
+            logger.info("[TRACE] Recibiendo Webhook de Pago...");
             String body;
             try (InputStream is = he.getRequestBody();
                  Scanner scanner = new Scanner(is, StandardCharsets.UTF_8.name())) {
                 body = scanner.useDelimiter("\\A").hasNext() ? scanner.next() : "";
             }
+            logger.info("[TRACE] Cuerpo Webhook recibido: {}", body);
 
             JsonObject json = JsonParser.parseString(body).getAsJsonObject();
             String ordenId = json.get("orden_id").getAsString();
             String status = json.get("status").getAsString();
-
-            logger.info("Webhook recibido para Orden {}: Status={}", ordenId, status);
+            logger.info("[TRACE] Procesando actualización: Orden={}, NuevoEstado={}", ordenId, status);
 
             if ("COMPLETED".equalsIgnoreCase(status)) {
+                logger.info("[TRACE] Confirmando compra en DB corporativa...");
                 finalizarCompra(ordenId);
+                logger.info("[TRACE] Estado actualizado a COMPLETADA.");
             } else {
-                logger.warn("Recibido status no exitoso en webhook para orden {}: {}", ordenId, status);
-                // Aquí se podría implementar lógica de cancelación/reversión
+                logger.warn("[TRACE] Webhook reportó status no exitoso: {}", status);
             }
 
             enviarRespuesta(he, 200, "{\"status\":\"OK\",\"message\":\"Webhook procesado\"}");
