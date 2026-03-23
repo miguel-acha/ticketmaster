@@ -20,15 +20,18 @@ public class CompraRepository {
      * @param idTicket  UUID del ticket comprado
      * @param idUsuario ID del usuario que compra
      * @param total     Precio total pagado
+     * @param ordenId   Identificador de la orden (agrupa tickets del mismo carrito)
      * @return id generado de la compra
      */
-    public int registrarCompra(String idTicket, int idUsuario, double total) throws SQLException {
+    public int registrarCompra(String idTicket, int idUsuario, double total, String ordenId, String estado) throws SQLException {
         Connection conn = ConexionDb.getInstance().getConnection();
-        String sql = "INSERT INTO compras (id_ticket, id_usuario, total, estado) VALUES (?, ?, ?, 'completada')";
+        String sql = "INSERT INTO compras (id_ticket, id_usuario, total, orden_id, estado) VALUES (?, ?, ?, ?, ?)";
         try (PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             pstmt.setString(1, idTicket);
             pstmt.setInt(2, idUsuario);
             pstmt.setDouble(3, total);
+            pstmt.setString(4, ordenId);
+            pstmt.setString(5, estado);
             pstmt.executeUpdate();
             try (ResultSet rs = pstmt.getGeneratedKeys()) {
                 if (rs.next()) {
@@ -46,7 +49,7 @@ public class CompraRepository {
     public JsonArray listarPorUsuario(int idUsuario) throws SQLException {
         Connection conn = ConexionDb.getInstance().getConnection();
         JsonArray lista = new JsonArray();
-        String sql = "SELECT c.id_compra, c.id_ticket, c.fecha_compra, c.total, c.estado, "
+        String sql = "SELECT c.id_compra, c.id_ticket, c.fecha_compra, c.total, c.estado, c.orden_id, "
                 + "       e.nombre AS nombre_evento, e.fecha AS fecha_evento, "
                 + "       t.nro_asiento, tt.tipo_asiento "
                 + "FROM compras c "
@@ -62,6 +65,7 @@ public class CompraRepository {
                     JsonObject obj = new JsonObject();
                     obj.addProperty("id_compra", rs.getInt("id_compra"));
                     obj.addProperty("id_ticket", rs.getString("id_ticket"));
+                    obj.addProperty("orden_id", rs.getString("orden_id"));
                     obj.addProperty("fecha_compra", rs.getString("fecha_compra"));
                     obj.addProperty("total", rs.getDouble("total"));
                     obj.addProperty("estado", rs.getString("estado"));

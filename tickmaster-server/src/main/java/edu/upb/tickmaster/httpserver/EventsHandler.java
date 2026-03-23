@@ -1,5 +1,6 @@
 package edu.upb.tickmaster.httpserver;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.sun.net.httpserver.Headers;
@@ -50,11 +51,9 @@ public class EventsHandler implements HttpHandler {
                 return;
             }
 
-            // --- Tipos de ticket ---
+            // --- Tipos de ticket (Listar) ---
             if (path.endsWith("/tipos")) {
-                if (method.equals("POST")) {
-                    handleCrearTipoTicket(he);
-                } else if (method.equals("GET")) {
+                if (method.equals("GET")) {
                     handleListarTiposTicket(he);
                 } else {
                     enviarJson(he, 405, "{\"status\":\"NOK\",\"message\":\"Metodo no soportado\"}");
@@ -67,6 +66,8 @@ public class EventsHandler implements HttpHandler {
                 handleCrearEvento(he);
             } else if (method.equals("GET")) {
                 handleListarEventos(he);
+            } else if (method.equals("DELETE")) {
+                handleEliminarEvento(he);
             } else {
                 enviarJson(he, 405, "{\"status\":\"NOK\",\"message\":\"Metodo no soportado\"}");
             }
@@ -92,13 +93,18 @@ public class EventsHandler implements HttpHandler {
 
             JsonObject json = JsonParser.parseString(body).getAsJsonObject();
 
-            String nombre = json.get("nombre").getAsString();
-            String fecha = json.get("fecha").getAsString();
-            int capacidad = json.get("capacidad").getAsInt();
+            String nombre = (json.has("nombre") && !json.get("nombre").isJsonNull()) ? json.get("nombre").getAsString() : "";
+            String fecha = (json.has("fecha") && !json.get("fecha").isJsonNull()) ? json.get("fecha").getAsString() : "";
+            String imagenUrl = (json.has("imagen_url") && !json.get("imagen_url").isJsonNull()) ? json.get("imagen_url").getAsString() : null;
 
-            int id = eventoRepository.crearEvento(nombre, fecha, capacidad);
+            JsonArray tiposTickets = null;
+            if (json.has("tipos_tickets") && !json.get("tipos_tickets").isJsonNull()) {
+                tiposTickets = json.getAsJsonArray("tipos_tickets");
+            }
 
-            logger.info("Evento creado: nombre={}, capacidad={}, id={}", nombre, capacidad, id);
+            int id = eventoRepository.crearEvento(nombre, fecha, imagenUrl, tiposTickets);
+
+            logger.info("Evento creado: nombre={}, id={}, con {} tipos de tickets", nombre, id, (tiposTickets != null ? tiposTickets.size() : 0));
 
             JsonObject res = new JsonObject();
             res.addProperty("status", "OK");
@@ -127,42 +133,7 @@ public class EventsHandler implements HttpHandler {
         }
     }
 
-    // POST /eventos/tipos
-    private void handleCrearTipoTicket(HttpExchange he) throws IOException {
-        try {
-            String body;
-            byte[] cachedBody = (byte[]) he.getAttribute("cached_body");
-            if (cachedBody != null) {
-                body = new String(cachedBody, StandardCharsets.UTF_8);
-            } else {
-                try (InputStream is = he.getRequestBody();
-                        Scanner scanner = new Scanner(is, StandardCharsets.UTF_8.name())) {
-                    body = scanner.useDelimiter("\\A").hasNext() ? scanner.next() : "";
-                }
-            }
-
-            JsonObject json = JsonParser.parseString(body).getAsJsonObject();
-
-            int idEvento = json.get("id_evento").getAsInt();
-            String tipoAsiento = json.get("tipo_asiento").getAsString();
-            int cantidad = json.get("cantidad").getAsInt();
-            double precio = json.get("precio").getAsDouble();
-
-            int id = tipoTicketRepository.crear(idEvento, tipoAsiento, cantidad, precio);
-
-            logger.info("Tipo de ticket creado: evento={}, tipo={}, id={}", idEvento, tipoAsiento, id);
-
-            JsonObject res = new JsonObject();
-            res.addProperty("status", "OK");
-            res.addProperty("id_tipo_ticket", id);
-            res.addProperty("message", "Tipo de ticket creado exitosamente");
-            enviarJson(he, 200, res.toString());
-
-        } catch (Exception e) {
-            logger.error("Error al crear tipo de ticket", e);
-            enviarJson(he, 500, "{\"status\":\"NOK\",\"message\":\"Error: " + e.getMessage() + "\"}");
-        }
-    }
+    // CREAR TIPO TICKET AISLADO ELIMINADO
 
     // GET /eventos/tipos?id=N
     private void handleListarTiposTicket(HttpExchange he) throws IOException {
@@ -182,6 +153,24 @@ public class EventsHandler implements HttpHandler {
         } catch (Exception e) {
             logger.error("Error al listar tipos de ticket", e);
             enviarJson(he, 500, "{\"status\":\"NOK\",\"message\":\"Error al listar tipos de ticket\"}");
+        }
+    }
+
+    // DELETE /eventos?id=N
+    private void handleEliminarEvento(HttpExchange he) throws IOException {
+        try {
+            String query = he.getRequestURI().getQuery();
+            if (query != null && query.startsWith("id=")) {
+                int idEvento = Integer.parseInt(query.substring(3));
+                eventoRepository.eliminarEvento(idEvento);
+                logger.info("Evento eliminado: id={}", idEvento);
+                enviarJson(he, 200, "{\"status\":\"OK\",\"message\":\"Evento eliminado correctamente\"}");
+            } else {
+                enviarJson(he, 400, "{\"status\":\"NOK\",\"message\":\"Falta parametro id\"}");
+            }
+        } catch (Exception e) {
+            logger.error("Error al eliminar evento", e);
+            enviarJson(he, 500, "{\"status\":\"NOK\",\"message\":\"Error al eliminar evento: " + e.getMessage() + "\"}");
         }
     }
 

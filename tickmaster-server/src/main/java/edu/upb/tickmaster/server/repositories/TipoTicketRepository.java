@@ -102,4 +102,36 @@ public class TipoTicketRepository {
             }
         }
     }
+
+    /**
+     * Decrementa disponibilidad empleando Bloqueo Pesimista (FOR UPDATE).
+     * Requiere que la conexión esté en modo manual (setAutoCommit(false)).
+     */
+    public void decrementarDisponibilidadConBloqueo(Connection conn, int idTipoTicket, int cantidadRestar)
+            throws SQLException {
+        // 1. Lectura con bloqueo (Pessimistic Locking)
+        String sqlSelect = "SELECT cantidad FROM tipo_ticket WHERE id_tipo_ticket = ? FOR UPDATE";
+        try (PreparedStatement pstmt = conn.prepareStatement(sqlSelect)) {
+            pstmt.setInt(1, idTipoTicket);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    int actual = rs.getInt("cantidad");
+                    if (actual < cantidadRestar) {
+                        throw new SQLException("No hay disponibilidad suficiente para el ticket ID: " + idTipoTicket
+                                + " (Disponible: " + actual + ", Requerido: " + cantidadRestar + ")");
+                    }
+                } else {
+                    throw new SQLException("Tipo de ticket no existe: " + idTipoTicket);
+                }
+            }
+        }
+
+        // 2. Escritura (ya dentro del bloqueo)
+        String sqlUpdate = "UPDATE tipo_ticket SET cantidad = cantidad - ? WHERE id_tipo_ticket = ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(sqlUpdate)) {
+            pstmt.setInt(1, cantidadRestar);
+            pstmt.setInt(2, idTipoTicket);
+            pstmt.executeUpdate();
+        }
+    }
 }

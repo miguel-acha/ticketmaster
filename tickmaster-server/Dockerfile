@@ -7,6 +7,7 @@ COPY pom.xml .
 COPY tickmaster-server/pom.xml tickmaster-server/
 COPY tickmaster-load-balancer/pom.xml tickmaster-load-balancer/
 COPY tickmaster-client/pom.xml tickmaster-client/
+COPY tickmaster-pasarela/pom.xml tickmaster-pasarela/
 
 # Descargar dependencias (cache)
 RUN mvn dependency:go-offline -B

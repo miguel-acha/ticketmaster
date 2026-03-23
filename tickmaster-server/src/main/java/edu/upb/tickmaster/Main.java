@@ -35,7 +35,7 @@ public class Main {
         ConexionDb.getInstance();
         ApacheServer apacheServer = new ApacheServer();
         if (apacheServer.start()) {
-            logger.info("Tickmaster Server iniciado correctamente en puerto 1914");
+            logger.info("Tickmaster Server iniciado correctamente");
             try {
                 logger.info("Presiona Ctrl+C para detener...");
                 Thread.currentThread().join();
@@ -51,3 +51,8 @@ public class Main {
 // mvn exec:java -pl tickmaster-server
 
 // .\run-projects.ps1
+
+/*
+ * $env:LB_URL = "http://192.168.33.82:1915"
+ * mvn exec:java -pl tickmaster-server
+ */

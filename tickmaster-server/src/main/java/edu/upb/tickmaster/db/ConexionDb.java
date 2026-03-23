@@ -64,10 +64,11 @@ public class ConexionDb {
             // 2. Tabla EVENTOS
             // -------------------------------------------------------
             stmt.execute("CREATE TABLE IF NOT EXISTS eventos ("
-                    + "  id_evento INT PRIMARY KEY AUTO_INCREMENT,"
-                    + "  nombre    VARCHAR(255) NOT NULL,"
-                    + "  fecha     DATETIME NOT NULL,"
-                    + "  capacidad INT NOT NULL"
+                    + "  id_evento   INT PRIMARY KEY AUTO_INCREMENT,"
+                    + "  nombre      VARCHAR(255) NOT NULL,"
+                    + "  fecha       DATETIME NOT NULL,"
+                    + "  capacidad   INT NOT NULL,"
+                    + "  imagen_url  VARCHAR(500)"
                     + ")");
 
             // -------------------------------------------------------
@@ -105,6 +106,7 @@ public class ConexionDb {
                     + "  id_compra    INT PRIMARY KEY AUTO_INCREMENT,"
                     + "  id_ticket    VARCHAR(36) NOT NULL,"
                     + "  id_usuario   INT NOT NULL,"
+                    + "  orden_id     VARCHAR(100),"
                     + "  fecha_compra DATETIME DEFAULT CURRENT_TIMESTAMP,"
                     + "  total        DECIMAL(10,2) NOT NULL,"
                     + "  estado       ENUM('pendiente','completada','cancelada') DEFAULT 'completada',"
@@ -112,10 +114,48 @@ public class ConexionDb {
                     + "  FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario)"
                     + ")");
 
+            // -------------------------------------------------------
+            // 6. Tabla PASARELADEPAGO_COBROS
+            // -------------------------------------------------------
+            stmt.execute("CREATE TABLE IF NOT EXISTS pasareladepago_cobros ("
+                    + "  id_cobro    INT PRIMARY KEY AUTO_INCREMENT,"
+                    + "  id_usuario  INT NOT NULL,"
+                    + "  monto       DECIMAL(10,2) NOT NULL,"
+                    + "  estado      ENUM('pendiente','completado','fallido') DEFAULT 'completado',"
+                    + "  fecha_cobro DATETIME DEFAULT CURRENT_TIMESTAMP,"
+                    + "  FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario)"
+                    + ")");
+
+            // -------------------------------------------------------
+            // 7. Tabla PASARELADEPAGO_NOTIFICACIONES
+            // -------------------------------------------------------
+            stmt.execute("CREATE TABLE IF NOT EXISTS pasareladepago_notificaciones ("
+                    + "  id_notificacion INT PRIMARY KEY AUTO_INCREMENT,"
+                    + "  id_cobro        INT NOT NULL,"
+                    + "  mensaje         VARCHAR(255) NOT NULL,"
+                    + "  enviada         BOOLEAN DEFAULT TRUE,"
+                    + "  fecha_notif     DATETIME DEFAULT CURRENT_TIMESTAMP,"
+                    + "  FOREIGN KEY (id_cobro) REFERENCES pasareladepago_cobros(id_cobro)"
+                    + ")");
+
             // Datos iniciales
             seedData(stmt);
 
-            logger.info("Esquema de BD creado: usuarios, eventos, tipo_ticket, tickets, compras.");
+            // Migracion: agregar orden_id a compras si no existe
+            try {
+                stmt.execute("ALTER TABLE compras ADD COLUMN orden_id VARCHAR(100)");
+                logger.info("Columna orden_id agregada a compras.");
+            } catch (SQLException ignored) {
+            }
+
+            // Migracion: agregar imagen_url a eventos si no existe
+            try {
+                stmt.execute("ALTER TABLE eventos ADD COLUMN imagen_url VARCHAR(500)");
+                logger.info("Columna imagen_url agregada a eventos.");
+            } catch (SQLException ignored) {
+            }
+
+            logger.info("Esquema de BD creado incluyendo pasareladepago.");
 
         } catch (SQLException e) {
             logger.error("Error al crear las tablas o base de datos", e);

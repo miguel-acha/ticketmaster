@@ -4,92 +4,159 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tickmaster - Iniciar Sesión</title>
+    <title>TicketMaster — Acceso</title>
     <link rel="stylesheet" href="styles.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 
 <body>
     <div id="alert-container"></div>
-
     <div class="auth-wrapper">
-        <div class="glass-card auth-card">
-            <h1 style="text-align: center; margin-bottom: 2rem; color: var(--primary-color)">Tickmaster</h1>
+        <div class="auth-card">
 
-            <div class="auth-tabs">
-                <div class="tab active" onclick="switchTab('login')">Ingresar</div>
-                <div class="tab" onclick="switchTab('register')">Registrarse</div>
+            <div class="auth-brand">
+                <!-- Logo: mismo directorio que los HTML -->
+                <img src="logo.png" alt="TicketMaster" class="auth-brand-logo"
+                    onerror="this.style.display='none'; document.getElementById('auth-fallback-icon').style.display='flex';">
+                <!-- Fallback si no carga el logo -->
+                <div class="auth-brand-icon" id="auth-fallback-icon" style="display:none;">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path
+                            d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z" />
+                        <path d="M13 5v2" />
+                        <path d="M13 17v2" />
+                        <path d="M13 11v2" />
+                    </svg>
+                </div>
+                <div class="auth-brand-title">TicketMaster</div>
+                <div class="auth-brand-sub">Accede a los mejores eventos</div>
             </div>
 
-            <!-- Login Form -->
-            <form id="login-form">
-                <div class="form-group">
-                    <label>Usuario</label>
-                    <input type="text" id="login-user" placeholder="Tu username" required>
+            <div class="auth-tabs">
+                <div class="auth-tab active" id="tab-login" onclick="switchTab('login')">Ingresar</div>
+                <div class="auth-tab" id="tab-register" onclick="switchTab('register')">Registrarse</div>
+            </div>
+
+            <!-- ── LOGIN ─────────────────────────────────── -->
+            <form id="login-form" onsubmit="handleLogin(event)">
+                <div class="form-group auth-field">
+                    <label for="login-user">Usuario</label>
+                    <input type="text" id="login-user" placeholder="tu_usuario" autocomplete="username" required
+                        style="padding:11px 14px; font-size:0.95rem;">
                 </div>
-                <div class="form-group">
-                    <label>Contraseña</label>
-                    <input type="password" id="login-pass" placeholder="••••••••" required>
+                <div class="form-group auth-field" style="margin-bottom:1.75rem;">
+                    <label for="login-pass">Contraseña</label>
+                    <input type="password" id="login-pass" placeholder="********" autocomplete="current-password"
+                        required style="padding:11px 14px; font-size:0.95rem;">
                 </div>
-                <button type="submit" class="btn btn-primary" style="width: 100%">Entrar al Dashboard</button>
+                <div class="auth-field">
+                    <button type="submit" id="login-btn" class="btn btn-primary btn-wide"
+                        style="height:46px; font-size:0.95rem;">
+                        Ingresar
+                    </button>
+                </div>
             </form>
 
-            <!-- Register Form -->
-            <form id="register-form" style="display: none;">
-                <div class="form-group">
-                    <label>Nombre Completo</label>
-                    <input type="text" id="reg-nombre" placeholder="Juan Pérez" required>
+            <!-- ── REGISTER ───────────────────────────────── -->
+            <form id="register-form" style="display:none;" onsubmit="handleRegister(event)">
+                <div class="form-group auth-field">
+                    <label for="reg-user">Usuario</label>
+                    <input type="text" id="reg-user" placeholder="usuario_único" autocomplete="username" required
+                        style="padding:11px 14px; font-size:0.95rem;">
                 </div>
-                <div class="form-group">
-                    <label>Usuario</label>
-                    <input type="text" id="reg-user" placeholder="username" required>
+                <div class="form-group auth-field">
+                    <label for="reg-nombre">Nombre completo</label>
+                    <input type="text" id="reg-nombre" placeholder="Tu Nombre" autocomplete="name" required
+                        style="padding:11px 14px; font-size:0.95rem;">
                 </div>
-                <div class="form-group">
-                    <label>Contraseña</label>
-                    <input type="password" id="reg-pass" placeholder="Mínimo 6 caracteres" required>
+                <div class="form-group auth-field">
+                    <label for="reg-pass">Contraseña</label>
+                    <input type="password" id="reg-pass" placeholder="Mín. 6 caracteres" autocomplete="new-password"
+                        required minlength="6" style="padding:11px 14px; font-size:0.95rem;">
                 </div>
-                <button type="submit" class="btn btn-primary" style="width: 100%">Crear Cuenta</button>
+
+                <!--
+                  CHECKBOX FIX:
+                  Usamos <span class="field-label"> (NO <label>) para el texto del campo,
+                  y un <label class="checkbox-row" for="reg-is-admin"> separado que envuelve
+                  el input. Así evitamos el conflicto de dos <label> consecutivos que hacía
+                  que el clic en la fila activara el label externo en vez del checkbox interno.
+                -->
+                <div class="form-group auth-field" style="margin-bottom:1.75rem;">
+                    <span class="field-label">Tipo de cuenta</span>
+                    <label class="checkbox-row" for="reg-is-admin">
+                        <input type="checkbox" id="reg-is-admin">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            style="flex-shrink:0; opacity:0.7;">
+                            <polygon
+                                points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                        </svg>
+                        Quiero crear y gestionar eventos
+                    </label>
+                </div>
+
+                <div class="auth-field">
+                    <button type="submit" id="register-btn" class="btn btn-primary btn-wide"
+                        style="height:46px; font-size:0.95rem;">
+                        Crear cuenta
+                    </button>
+                </div>
             </form>
+
         </div>
     </div>
 
     <script>
         const API_BASE = "http://localhost:1915/servidor";
 
-        function showNotification(message, type = 'success') {
-            const container = document.getElementById('alert-container');
-            const alert = document.createElement('div');
-            alert.className = `alert alert-${type}`;
-            alert.textContent = message;
-            container.appendChild(alert);
-            setTimeout(() => alert.remove(), 4000);
+        if (localStorage.getItem('user') && localStorage.getItem('auth_token')) {
+            window.location.href = 'dashboard.html';
+        }
+
+        function showNotification(msg, type = 'success') {
+            const icons = {
+                success: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
+                error: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`,
+            };
+            const c = document.getElementById('alert-container');
+            const el = document.createElement('div');
+            el.className = `alert alert-${type}`;
+            el.innerHTML = `${icons[type] || ''}<span>${msg}</span>`;
+            c.appendChild(el);
+            setTimeout(() => {
+                el.style.animation = 'alertOut 0.3s ease forwards';
+                setTimeout(() => el.remove(), 300);
+            }, 4000);
         }
 
         function switchTab(tab) {
-            const loginForm = document.getElementById('login-form');
-            const registerForm = document.getElementById('register-form');
-            const tabs = document.querySelectorAll('.tab');
+            const isLogin = tab === 'login';
+            const lf = document.getElementById('login-form');
+            const rf = document.getElementById('register-form');
+            const next = isLogin ? lf : rf;
+            const current = isLogin ? rf : lf;
 
-            if (tab === 'login') {
-                loginForm.style.display = 'block';
-                registerForm.style.display = 'none';
-                tabs[0].classList.add('active');
-                tabs[1].classList.remove('active');
-            } else {
-                loginForm.style.display = 'none';
-                registerForm.style.display = 'block';
-                tabs[0].classList.remove('active');
-                tabs[1].classList.add('active');
-            }
+            current.style.display = 'none';
+            next.style.display = 'block';
+
+            // Re-animar campos
+            next.querySelectorAll('.auth-field').forEach(f => {
+                f.style.animation = 'none';
+                f.offsetHeight;            // reflow
+                f.style.animation = null;
+            });
+
+            document.getElementById('tab-login').classList.toggle('active', isLogin);
+            document.getElementById('tab-register').classList.toggle('active', !isLogin);
+            if (isLogin) document.getElementById('register-form').reset();
         }
 
-        // Handle Login
-        document.getElementById('login-form').onsubmit = async (e) => {
+        async function handleLogin(e) {
             e.preventDefault();
-            const btn = e.target.querySelector('button');
+            const btn = document.getElementById('login-btn');
             btn.disabled = true;
-            btn.textContent = 'Verificando...';
-
+            btn.innerHTML = `<span class="spinner">...</span> Verificando...`;
             try {
                 const res = await fetch(`${API_BASE}/usuarios/login`, {
                     method: 'POST',
@@ -99,31 +166,26 @@
                         password: document.getElementById('login-pass').value
                     })
                 });
-
                 const data = await res.json();
                 if (data.status === 'OK') {
-                    showNotification('¡Bienvenido!');
+                    showNotification(`Bienvenido, ${data.nombre || data.username}`);
                     localStorage.setItem('user', JSON.stringify(data));
-                    localStorage.setItem('auth_token', data.token); // Guardar el token para las peticiones
-                    setTimeout(() => window.location.href = 'dashboard.html', 1000);
+                    localStorage.setItem('auth_token', data.token);
+                    document.body.style.transition = 'opacity 0.4s';
+                    document.body.style.opacity = '0';
+                    setTimeout(() => window.location.href = 'dashboard.html', 450);
                 } else {
-                    showNotification(data.message || 'Error en credenciales', 'error');
+                    showNotification(data.message || 'Credenciales incorrectas', 'error');
                 }
-            } catch (err) {
-                showNotification('Error de conexión con el balanceador (puerto 1915)', 'error');
-            } finally {
-                btn.disabled = false;
-                btn.textContent = 'Entrar al Dashboard';
-            }
-        };
+            } catch { showNotification('Error de conexión', 'error'); }
+            finally { btn.disabled = false; btn.textContent = 'Ingresar'; }
+        }
 
-        // Handle Registry
-        document.getElementById('register-form').onsubmit = async (e) => {
+        async function handleRegister(e) {
             e.preventDefault();
-            const btn = e.target.querySelector('button');
+            const btn = document.getElementById('register-btn');
             btn.disabled = true;
-            btn.textContent = 'Registrando...';
-
+            btn.innerHTML = `<span class="spinner">...</span> Procesando...`;
             try {
                 const res = await fetch(`${API_BASE}/usuarios/registrar`, {
                     method: 'POST',
@@ -131,28 +193,22 @@
                     body: JSON.stringify({
                         nombre: document.getElementById('reg-nombre').value,
                         username: document.getElementById('reg-user').value,
-                        password: document.getElementById('reg-pass').value
+                        password: document.getElementById('reg-pass').value,
+                        rol: document.getElementById('reg-is-admin').checked ? 'admin' : 'cliente'
                     })
                 });
-
                 const data = await res.json();
                 if (data.status === 'OK') {
-                    showNotification('Cuenta creada. ¡Ya puedes ingresar!');
+                    showNotification('Cuenta creada. Ya puedes ingresar.');
+                    const u = document.getElementById('reg-user').value;
                     switchTab('login');
+                    document.getElementById('login-user').value = u;
+                    document.getElementById('login-pass').focus();
                 } else {
                     showNotification(data.message || 'Error al registrar', 'error');
                 }
-            } catch (err) {
-                showNotification('Error de conexión con el servidor', 'error');
-            } finally {
-                btn.disabled = false;
-                btn.textContent = 'Crear Cuenta';
-            }
-        };
-
-        // Check if already logged in (must have both user data and token)
-        if (localStorage.getItem('user') && localStorage.getItem('auth_token')) {
-            window.location.href = 'dashboard.html';
+            } catch { showNotification('Error de conexión', 'error'); }
+            finally { btn.disabled = false; btn.textContent = 'Crear cuenta'; }
         }
     </script>
 </body>

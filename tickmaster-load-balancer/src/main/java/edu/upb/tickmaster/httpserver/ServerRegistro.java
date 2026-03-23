@@ -20,14 +20,18 @@ public class ServerRegistro extends Thread {
     private static final Logger logger = LoggerFactory.getLogger(ServerRegistro.class);
     private static ServerRegistro instance;
 
-    // Servidores que están respondiendo OK
-    private final Map<String, List<String>> activeServers = new ConcurrentHashMap<>();
-    // Todos los servidores registrados (vía config o dinámico)
-    private final Map<String, List<String>> allRegisteredServers = new ConcurrentHashMap<>();
+    // Lista de balanceo: Servidores que están respondiendo OK
+    private final Map<String, List<String>> listaBalanceo = new ConcurrentHashMap<>();
+    // Lista de verificación: Todos los servidores registrados y en proceso de
+    // monitoreo
+    private final Map<String, List<String>> listaVerificacion = new ConcurrentHashMap<>();
+    // Contador de fallos por servidor
+    private final Map<String, java.util.concurrent.atomic.AtomicInteger> failureCounts = new ConcurrentHashMap<>();
 
     // Configuración del límite de servidores
     private static final int MAX_SERVERS = 3;
     private static final boolean LIMIT_ENABLED = false; // Cambiar a false para desactivar el límite
+    public static final String intentos = System.getenv("INTENTOS") != null ? System.getenv("INTENTOS") : "3";
 
     private ServerRegistro() {
         // Configuramos el hilo como daemon ya que es una funcion de background
@@ -51,7 +55,7 @@ public class ServerRegistro extends Thread {
             Thread.sleep(10000);
             while (true) {
                 verificarSaludTodos();
-                Thread.sleep(60000); // 1 minuto
+                Thread.sleep(2000); // Antes 6000 (6s), ahora 2s para recuperación rápida
             }
         } catch (InterruptedException e) {
             logger.error("Hilo de salud interrumpido", e);
@@ -65,28 +69,35 @@ public class ServerRegistro extends Thread {
     }
 
     public synchronized void add(String serviceName, String serverUrl) {
-        allRegisteredServers.computeIfAbsent(serviceName, k -> new java.util.concurrent.CopyOnWriteArrayList<>());
-        activeServers.computeIfAbsent(serviceName, k -> new java.util.concurrent.CopyOnWriteArrayList<>());
+        String cleanUrl = cleanUrl(serverUrl);
+        listaVerificacion.computeIfAbsent(serviceName, k -> new java.util.concurrent.CopyOnWriteArrayList<>());
+        listaBalanceo.computeIfAbsent(serviceName, k -> new java.util.concurrent.CopyOnWriteArrayList<>());
 
-        if (!allRegisteredServers.get(serviceName).contains(serverUrl)) {
+        if (!listaVerificacion.get(serviceName).contains(cleanUrl)) {
             // Verificar límite si está activado
-            if (LIMIT_ENABLED && allRegisteredServers.get(serviceName).size() >= MAX_SERVERS) {
+            if (LIMIT_ENABLED && listaVerificacion.get(serviceName).size() >= MAX_SERVERS) {
                 logger.warn("No se pudo registrar {}: Límite máximo de {} servidores alcanzado para el servicio {}.",
-                        serverUrl, MAX_SERVERS, serviceName);
+                        cleanUrl, MAX_SERVERS, serviceName);
                 return;
             }
-            allRegisteredServers.get(serviceName).add(serverUrl);
-            logger.info("Servidor registrado en [{}]: {}", serviceName, serverUrl);
+            listaVerificacion.get(serviceName).add(cleanUrl);
+            logger.info("Servidor registrado en [{}]: {}", serviceName, cleanUrl);
         }
 
         // lo consideramos activo inicialmente para no esperar al prime
-        if (!activeServers.get(serviceName).contains(serverUrl)) {
-            activeServers.get(serviceName).add(serverUrl);
+        if (!listaBalanceo.get(serviceName).contains(cleanUrl)) {
+            listaBalanceo.get(serviceName).add(cleanUrl);
         }
     }
 
+    private String cleanUrl(String url) {
+        if (url == null)
+            return null;
+        return url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
+    }
+
     public synchronized String getNextServer(String serviceName) {
-        List<String> servers = activeServers.get(serviceName);
+        List<String> servers = listaBalanceo.get(serviceName);
         if (servers == null || servers.isEmpty()) {
             return null;
         }
@@ -100,7 +111,8 @@ public class ServerRegistro extends Thread {
 
     private void verificarSaludTodos() {
         logger.debug("Verificando health de todos...");
-        allRegisteredServers.forEach((serviceName, servers) -> {
+
+        listaVerificacion.forEach((serviceName, servers) -> {
             for (String url : servers) {
                 boolean estaSano = realizarChequeo(url);
                 actualizarEstadoServidor(serviceName, url, estaSano);
@@ -119,7 +131,7 @@ public class ServerRegistro extends Thread {
             if (conn.getResponseCode() == 200) {
                 String body = new String(conn.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
                 JsonObject json = JsonParser.parseString(body).getAsJsonObject();
-                return "OK".equalsIgnoreCase(json.get("status").getAsString());
+                return "UP".equalsIgnoreCase(json.get("status").getAsString());
             }
         } catch (Exception e) {
             logger.debug("Servidor {} no saludable: {}", serverUrl, e.getMessage());
@@ -128,20 +140,45 @@ public class ServerRegistro extends Thread {
     }
 
     private synchronized void actualizarEstadoServidor(String serviceName, String url, boolean estaSano) {
-        List<String> active = activeServers.get(serviceName);
+        List<String> balanceo = listaBalanceo.get(serviceName);
         if (estaSano) {
-            if (!active.contains(url)) {
-                active.add(url);
-                logger.info("Servidor recuperado [{}]: {}", serviceName, url);
+            failureCounts.computeIfAbsent(url, k -> new java.util.concurrent.atomic.AtomicInteger(0)).set(0);
+            if (balanceo != null && !balanceo.contains(url)) {
+                balanceo.add(url);
+                logger.info("Servidor recuperado a lista de balanceo [{}]: {}", serviceName, url);
             }
         } else {
-            if (active.remove(url)) {
-                logger.warn("Servidor fuera de servicio [{}]: {}", serviceName, url);
+            // Si el chequeo falla, se reporta como un fallo
+            reportFailure(serviceName, url);
+        }
+    }
+
+    public synchronized void reportFailure(String serviceName, String url) {
+        List<String> balanceo = listaBalanceo.get(serviceName);
+        List<String> verificacion = listaVerificacion.get(serviceName);
+
+        int max = Integer.parseInt(intentos);
+        int currentFallos = failureCounts.computeIfAbsent(url, k -> new java.util.concurrent.atomic.AtomicInteger(0))
+                .incrementAndGet();
+
+        // Al primer fallo se saca de la lista de balanceo inmediatamente
+        if (balanceo != null && balanceo.remove(url)) {
+            logger.warn("Servidor sacado de balanceo al primer fallo [{}]: {}", serviceName, url);
+        }
+
+        // Si llega a los 3 intentos(max), se saca de la lista de verificación
+        // (definitivamente)
+        if (currentFallos >= max) {
+            if (verificacion != null && verificacion.remove(url)) {
+                logger.error("Servidor sacado definitivamente de verificación tras {} fallos [{}]: {}", max,
+                        serviceName, url);
             }
+        } else {
+            logger.warn("Fallo detectado en verificación ({}/{}) para [{}]: {}", currentFallos, max, serviceName, url);
         }
     }
 
     public Map<String, List<String>> getAll() {
-        return new ConcurrentHashMap<>(activeServers);
+        return new ConcurrentHashMap<>(listaBalanceo);
     }
 }

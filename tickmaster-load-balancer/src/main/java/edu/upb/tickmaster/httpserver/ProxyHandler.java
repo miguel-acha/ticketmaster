@@ -26,6 +26,7 @@ public class ProxyHandler implements HttpHandler {
     private static final AtomicInteger ACTIVE_CONNECTIONS = new AtomicInteger(0);
     private static final int MAX_CONNECTIONS = 5;
     private static final boolean CONLIMIT_ENABLED = false; // Cambiar a false para desactivar
+    public static String intentos = System.getenv("INTENTOS") != null ? System.getenv("INTENTOS") : "3";
 
     static {
         loadInitialRoutes();
@@ -67,8 +68,15 @@ public class ProxyHandler implements HttpHandler {
             String path = exchange.getRequestURI().getPath();
 
             // Manejar Registro Dinámico
-            if (path.equals("/registrar") && exchange.getRequestMethod().equalsIgnoreCase("POST")) {
-                handleRegistration(exchange);
+            String normalizedPath = path.endsWith("/") && path.length() > 1 ? path.substring(0, path.length() - 1) : path;
+            if (normalizedPath.equalsIgnoreCase("/register")) {
+                if (exchange.getRequestMethod().equalsIgnoreCase("POST")) {
+                    handleRegistration(exchange);
+                } else {
+                    logger.warn("Petición {} a /register no permitida", exchange.getRequestMethod());
+                    exchange.sendResponseHeaders(405, -1); // Method Not Allowed
+                    exchange.close();
+                }
                 return;
             }
 
@@ -85,32 +93,41 @@ public class ProxyHandler implements HttpHandler {
                 return;
             }
 
-            // Extraer Prefijo (Isla de Servicio)
-            String cleanPath = path.startsWith("/") ? path.substring(1) : path;
-            String[] pathSegments = cleanPath.split("/", 2);
+            // Extraer Path y Query
+            String query = exchange.getRequestURI().getQuery();
+            String fullPath = exchange.getRequestURI().getPath();
 
-            if (pathSegments.length < 1 || pathSegments[0].isEmpty()) {
-                exchange.sendResponseHeaders(404, -1);
-                exchange.close();
-                return;
+            String serviceName = "servidor";
+            String pathForBackend = fullPath;
+
+            String[] pathParts = fullPath.split("/", 3);
+            if (pathParts.length > 1 && !pathParts[1].isEmpty()) {
+                String potentialService = pathParts[1];
+                if (ServerRegistro.getInstance().getAll().containsKey(potentialService)) {
+                    serviceName = potentialService;
+                    pathForBackend = "/" + (pathParts.length > 2 ? pathParts[2] : "");
+                }
             }
 
-            String serviceName = pathSegments[0];
             String backendServerUrl = ServerRegistro.getInstance().getNextServer(serviceName);
 
             if (backendServerUrl == null) {
-                logger.warn("No hay servidores disponibles para el servicio: {}", serviceName);
-                exchange.sendResponseHeaders(503, -1);
+                logger.warn("No hay servidores disponibles en el grupo: {}", serviceName);
+                String response = "No hay ningún servidor disponible en la lista.";
+                byte[] responseBytes = response.getBytes(StandardCharsets.UTF_8);
+                exchange.getResponseHeaders().set("Content-Type", "text/plain; charset=UTF-8");
+                exchange.sendResponseHeaders(503, responseBytes.length);
+                try (OutputStream os = exchange.getResponseBody()) {
+                    os.write(responseBytes);
+                }
                 exchange.close();
                 return;
             }
 
-            // Construir URL destino preservando el resto del path y query
-            String remainingPath = (pathSegments.length > 1) ? "/" + pathSegments[1] : "";
-            String query = exchange.getRequestURI().getQuery();
-            String targetUrl = backendServerUrl + remainingPath + (query != null ? "?" + query : "");
+            // Construir URL destino preservando el path sin el service name
+            String targetUrl = backendServerUrl + pathForBackend + (query != null ? "?" + query : "");
 
-            forwardRequest(exchange, targetUrl);
+            forwardRequest(exchange, targetUrl, serviceName, pathForBackend);
         } finally {
             ACTIVE_CONNECTIONS.decrementAndGet();
         }
@@ -122,10 +139,18 @@ public class ProxyHandler implements HttpHandler {
             JsonObject json = JsonParser.parseString(body).getAsJsonObject();
 
             String serviceName = json.has("serviceName") ? json.get("serviceName").getAsString() : "servidor";
-            String ip = json.get("ip").getAsString();
-            int puerto = json.get("puerto").getAsInt();
 
-            ServerRegistro.getInstance().add(serviceName, ip, puerto);
+            if (!json.has("url")) {
+                throw new IllegalArgumentException("El campo 'url' es obligatorio para el registro.");
+            }
+
+            String urlString = json.get("url").getAsString();
+
+            if (urlString.endsWith("/")) {
+                urlString = urlString.substring(0, urlString.length() - 1);
+            }
+
+            ServerRegistro.getInstance().add(serviceName, urlString);
 
             String response = "{\"status\": \"registrado\", \"servicio\": \"" + serviceName + "\"}";
             byte[] responseBytes = response.getBytes(StandardCharsets.UTF_8);
@@ -143,7 +168,7 @@ public class ProxyHandler implements HttpHandler {
         }
     }
 
-    private void forwardRequest(HttpExchange exchange, String targetUrl) throws IOException {
+    private void forwardRequest(HttpExchange exchange, String targetServerUrl, String serviceName, String pathForBackend) throws IOException {
         String method = exchange.getRequestMethod();
         byte[] cachedRequestBody = new byte[0];
         if (method.equals("POST") || method.equals("PUT")) {
@@ -152,12 +177,14 @@ public class ProxyHandler implements HttpHandler {
             }
         }
 
-        int intento = 0;
-        while (intento < 2) {
-            intento++;
+
+        String currentTargetBaseUrl = targetServerUrl;
+        String currentTargetUrl = targetServerUrl;
+        
+        for (int intento = 1; intento <= Integer.parseInt(ServerRegistro.intentos); intento++) {
             try {
-                logger.info("Proxying a: {} (intento {})", targetUrl, intento);
-                URL url = new URL(targetUrl);
+                logger.info("Proxying a: {} (intento {})", currentTargetUrl, intento);
+                URL url = new URL(currentTargetUrl);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod(method);
                 conn.setConnectTimeout(CONNECT_TIMEOUT);
@@ -211,8 +238,37 @@ public class ProxyHandler implements HttpHandler {
                 return;
             } catch (IOException e) {
                 logger.error("Error proxying (intento {}): {}", intento, e.getMessage());
-                if (intento >= 2) {
-                    exchange.sendResponseHeaders(502, -1);
+                
+                // Reportar el fallo usando el serviceName extraido
+                ServerRegistro.getInstance().reportFailure(serviceName, currentTargetBaseUrl);
+
+                if (intento < Integer.parseInt(ServerRegistro.intentos)) {
+                    // Intentar obtener OTRO servidor para el siguiente intento
+                    String nextBackendBaseUrl = ServerRegistro.getInstance().getNextServer(serviceName);
+                    if (nextBackendBaseUrl != null) {
+                        currentTargetBaseUrl = nextBackendBaseUrl;
+                        String query = exchange.getRequestURI().getQuery();
+                        currentTargetUrl = currentTargetBaseUrl + pathForBackend + (query != null ? "?" + query : "");
+                        logger.info("Reintentando con nuevo servidor: {}", currentTargetUrl);
+                    } else {
+                        logger.warn("No hay más servidores disponibles para reintentar.");
+                        String response = "No hay servidores activos para completar la petición.";
+                        byte[] responseBytes = response.getBytes(StandardCharsets.UTF_8);
+                        exchange.sendResponseHeaders(503, responseBytes.length);
+                        try (OutputStream os = exchange.getResponseBody()) {
+                            os.write(responseBytes);
+                        }
+                        exchange.close();
+                        return;
+                    }
+                } else {
+                    // Si ya agotamos los intentos
+                    String response = "Se agotaron los intentos de conexión (" + intento + ") con los servidores disponibles.";
+                    byte[] responseBytes = response.getBytes(StandardCharsets.UTF_8);
+                    exchange.sendResponseHeaders(502, responseBytes.length);
+                    try (OutputStream os = exchange.getResponseBody()) {
+                        os.write(responseBytes);
+                    }
                     exchange.close();
                 }
             }

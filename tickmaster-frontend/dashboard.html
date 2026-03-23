@@ -4,435 +4,697 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tickmaster - Dashboard</title>
+    <title>TicketMaster</title>
     <link rel="stylesheet" href="styles.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 
 <body>
     <div id="alert-container"></div>
 
+    <!-- ─── HEADER ───────────────────────────────────── -->
     <header>
-        <div class="container" style="padding: 0;">
-            <nav>
-                <h1 style="color: var(--primary-color)">Tickmaster</h1>
-                <div class="nav-links">
-                    <a href="#" class="nav-link active" onclick="showTab('eventos-tab', this)">Eventos</a>
-                    <a href="#" class="nav-link" onclick="showTab('mis-tickets-tab', this)">Mis Tickets</a>
-                    <a href="#" class="nav-link" id="admin-nav" style="display: none;"
-                        onclick="showTab('admin-tab', this)">Panel Admin</a>
+        <nav
+            style="display:flex; justify-content:space-between; align-items:center; width:100%; padding:0 1.5rem; gap:1rem;">
+            <div style="display:flex; align-items:center; gap:1.25rem;">
+
+                <!-- Logo + nombre de marca -->
+                <a href="#" class="brand">
+                    <img src="logo.png" alt="TM" onerror="this.style.display='none'"
+                        style="height:24px;width:auto;object-fit:contain;">
+                    TicketMaster
+                </a>
+
+                <nav class="nav-center">
+                    <a href="#" class="nav-link active" data-tab="eventos-tab"
+                        onclick="showTab('eventos-tab',this);return false;">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="4" width="18" height="18" rx="2" />
+                            <line x1="16" y1="2" x2="16" y2="6" />
+                            <line x1="8" y1="2" x2="8" y2="6" />
+                            <line x1="3" y1="10" x2="21" y2="10" />
+                        </svg>
+                        Cartelera
+                    </a>
+                    <a href="#" class="nav-link" data-tab="mis-tickets-tab"
+                        onclick="showTab('mis-tickets-tab',this);return false;">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path
+                                d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z" />
+                        </svg>
+                        Billetera
+                    </a>
+                    <a href="#" class="nav-link" data-tab="mis-compras-tab"
+                        onclick="showTab('mis-compras-tab',this);return false;">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                            <polyline points="14 2 14 8 20 8" />
+                        </svg>
+                        Compras
+                    </a>
+                    <a href="#" class="nav-link admin" id="admin-nav" style="display:none;" data-tab="admin-tab"
+                        onclick="showTab('admin-tab',this);return false;">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="3" />
+                            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14" />
+                        </svg>
+                        Panel
+                    </a>
+                </nav>
+            </div>
+
+            <div class="nav-right">
+                <button class="icon-btn" onclick="openCartModal()" id="cart-btn" title="Carrito">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="9" cy="21" r="1" />
+                        <circle cx="20" cy="21" r="1" />
+                        <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+                    </svg>
+                    <span id="cart-count-badge" class="cart-badge">0</span>
+                </button>
+                <div class="user-chip">
+                    <div class="user-avatar" id="user-avatar">?</div>
+                    <div>
+                        <div class="user-name" id="user-display">—</div>
+                        <div class="user-role" id="role-display">—</div>
+                    </div>
                 </div>
-                <div style="display: flex; align-items: center; gap: 1rem;">
-                    <span id="user-display" style="color: var(--text-secondary); font-size: 0.9rem;"></span>
-                    <button class="btn btn-secondary" onclick="logout()" style="padding: 0.5rem 1rem;">Cerrar
-                        Sesión</button>
-                </div>
-            </nav>
-        </div>
+                <button class="icon-btn danger" onclick="logout()" title="Cerrar sesión">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                        <polyline points="16 17 21 12 16 7" />
+                        <line x1="21" y1="12" x2="9" y2="12" />
+                    </svg>
+                </button>
+            </div>
+        </nav>
     </header>
 
+    <!-- ─── MAIN ──────────────────────────────────────── -->
     <main class="container">
-        <!-- Tab: Eventos -->
-        <section id="eventos-tab" class="dashboard-section">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-                <h2>Próximos Eventos</h2>
-                <button id="admin-create-btn" class="btn btn-secondary" style="display: none;"
-                    onclick="toggleCreateForm()">+ Nuevo Evento</button>
-            </div>
 
-            <!-- Formulario de creación (oculto por defecto) -->
-            <div id="create-event-section" class="glass-card"
-                style="display: none; margin-bottom: 2rem; border-color: var(--primary-color);">
-                <h3 style="margin-bottom: 1.5rem;">Registrar Nuevo Evento</h3>
-                <form id="create-event-form">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                        <div class="form-group">
-                            <label>Nombre del Evento</label>
-                            <input type="text" id="ev-nombre" placeholder="Ej: Concierto Rock" required>
+        <!-- Cartelera -->
+        <section id="eventos-tab" class="dashboard-section">
+            <div class="page-header">
+                <h2>Cartelera</h2>
+                <p>Eventos disponibles</p>
+            </div>
+            <div id="lista-eventos" class="event-grid">
+                <div class="empty-state" style="grid-column:1/-1;">
+                    <span class="spinner" style="margin-bottom:1rem;"></span>
+                    <p>Cargando eventos...</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Billetera -->
+        <section id="mis-tickets-tab" class="dashboard-section" style="display:none;">
+            <div class="page-header">
+                <h2>Billetera</h2>
+                <p>Tus entradas confirmadas</p>
+            </div>
+            <div id="lista-tickets" style="max-width:680px; margin:0 auto;">
+                <div class="empty-state">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path
+                            d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z" />
+                    </svg>
+                    <p>Tu billetera está vacía.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Historial -->
+        <section id="mis-compras-tab" class="dashboard-section" style="display:none;">
+            <div class="page-header">
+                <h2>Historial de compras</h2>
+                <p>Órdenes procesadas</p>
+            </div>
+            <div id="lista-compras" style="max-width:680px;margin:0 auto;">
+                <div class="empty-state">
+                    <span class="spinner" style="margin-bottom:1rem;"></span>
+                    <p>Cargando historial...</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Confirmación -->
+        <section id="resumen-compra-tab" class="dashboard-section" style="display:none;">
+            <div class="page-header" style="text-align:center;">
+                <h2 id="confirm-title">Confirmar compra</h2>
+                <p id="confirm-sub">Revisa los detalles antes de pagar</p>
+            </div>
+            <div class="glass-card" id="resumen-detalle" style="max-width:520px;margin:0 auto;"></div>
+            <div class="confirm-actions">
+                <button class="btn btn-ghost" onclick="cancelarConfirmacion()">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="19" y1="12" x2="5" y2="12" />
+                        <polyline points="12 19 5 12 12 5" />
+                    </svg>
+                    Volver
+                </button>
+                <button id="confirmar-pago-btn" class="btn btn-primary" onclick="confirmarPagoFinal()"
+                    style="min-width:190px;">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="1" y="4" width="22" height="16" rx="2" />
+                        <line x1="1" y1="10" x2="23" y2="10" />
+                    </svg>
+                    Pagar ahora
+                </button>
+            </div>
+        </section>
+
+        <!-- Admin -->
+        <section id="admin-tab" class="dashboard-section" style="display:none;">
+            <div class="page-header">
+                <h2>Panel de administración</h2>
+                <p>Crear y gestionar eventos</p>
+            </div>
+            <div class="admin-card" style="max-width:700px;margin:0 auto;">
+                <form id="create-event-form" onsubmit="crearEvento(event)">
+                    <div class="section-label">Información del evento</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+                        <div class="form-group" style="margin:0;grid-column:1/-1;">
+                            <label>Nombre del evento</label>
+                            <input type="text" id="ev-nombre" placeholder="World Tour 2026" required>
                         </div>
-                        <div class="form-group">
-                            <label>Fecha y Hora</label>
+                        <div class="form-group" style="margin:0;">
+                            <label>Fecha y hora</label>
                             <input type="datetime-local" id="ev-fecha" required>
                         </div>
-                        <div class="form-group">
-                            <label>Capacidad Total</label>
-                            <input type="number" id="ev-capacidad" placeholder="500" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Precio Entrada General ($)</label>
-                            <input type="number" id="ev-precio" placeholder="50.00" step="0.01" required>
+                        <div class="form-group" style="margin:0;">
+                            <label>URL de imagen <span
+                                    style="color:var(--text-3);font-weight:400;">(opcional)</span></label>
+                            <input type="url" id="ev-imagen" placeholder="https://...">
                         </div>
                     </div>
-                    <div style="margin-top: 1rem; display: flex; gap: 1rem;">
-                        <button type="submit" class="btn btn-primary">Guardar Evento y Entradas</button>
-                        <button type="button" class="btn btn-secondary" onclick="toggleCreateForm()">Cancelar</button>
+                    <div class="divider"></div>
+                    <div class="section-label">Tipos de entrada</div>
+                    <div id="dynamic-ticket-types">
+                        <div class="ticket-type-row">
+                            <div class="form-group" style="margin:0;"><label>Categoría</label><input type="text"
+                                    class="dyn-tt-nombre" placeholder="VIP" required></div>
+                            <div class="form-group" style="margin:0;"><label>Cantidad</label><input type="number"
+                                    class="dyn-tt-cantidad" placeholder="100" min="1" required></div>
+                            <div class="form-group" style="margin:0;"><label>Precio $</label><input type="number"
+                                    class="dyn-tt-precio" placeholder="150" step="0.01" min="0" required></div>
+                            <button type="button" class="icon-btn danger" style="margin-top:20px;flex-shrink:0;"
+                                onclick="this.closest('.ticket-type-row').remove()" title="Eliminar">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <line x1="18" y1="6" x2="6" y2="18" />
+                                    <line x1="6" y1="6" x2="18" y2="18" />
+                                </svg>
+                            </button>
+                        </div>
                     </div>
+                    <button type="button" class="btn btn-ghost btn-sm" onclick="addTicketTypeRow()"
+                        style="margin-bottom:1.5rem;">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="5" x2="12" y2="19" />
+                            <line x1="5" y1="12" x2="19" y2="12" />
+                        </svg>
+                        Añadir categoría
+                    </button>
+                    <button type="submit" id="create-event-btn" class="btn btn-primary btn-wide">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                        Publicar evento
+                    </button>
                 </form>
-            </div>
-
-            <div id="lista-eventos" class="grid">
-                <!-- Los eventos se cargan aquí -->
-                <p style="color: var(--text-secondary)">Cargando eventos...</p>
-            </div>
-        </section>
-
-        <!-- Tab: Mis Tickets -->
-        <section id="mis-tickets-tab" class="dashboard-section" style="display: none;">
-            <h2 style="margin-bottom: 2rem;">Mis Entradas</h2>
-            <div id="lista-tickets" class="grid">
-                <!-- Los tickets se cargan aquí -->
-                <p style="color: var(--text-secondary)">No tienes tickets aún.</p>
-            </div>
-        </section>
-
-        <section id="admin-tab" class="dashboard-section" style="display: none;">
-            <div class="glass-card" style="max-width: 600px; margin: 0 auto;">
-                <h2 style="margin-bottom: 1.5rem;">Panel de Administración</h2>
-                <p style="color: var(--text-secondary)">Usa el botón "+ Nuevo Evento" en la pestaña de Eventos para
-                    crear contenido.</p>
             </div>
         </section>
     </main>
 
-    <!-- Modal para comprar (Simple version) -->
-    <div id="buy-modal"
-        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center;">
-        <div class="glass-card" style="width: 100%; max-width: 500px;">
-            <h2 id="modal-event-title" style="margin-bottom: 1.5rem;">Cargando...</h2>
-            <div id="ticket-types-container" class="form-group">
-                <!-- Tipos de ticket se cargan aquí -->
+    <!-- Modal: Entradas -->
+    <div id="buy-modal" class="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal-box">
+            <div class="modal-header">
+                <div>
+                    <div class="modal-title" id="modal-event-title">Entradas</div>
+                    <div class="modal-sub">Selecciona y añade al carrito</div>
+                </div>
+                <button class="icon-btn" onclick="closeModal()">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                </button>
             </div>
-            <div style="display: flex; gap: 1rem;">
-                <button class="btn btn-secondary" style="flex: 1" onclick="closeModal()">Cancelar</button>
-                <button id="confirm-buy-btn" class="btn btn-primary" style="flex: 1">Confirmar Compra</button>
+            <div id="ticket-types-container" style="max-height:55vh;overflow-y:auto;"></div>
+        </div>
+    </div>
+
+    <!-- Modal: Carrito -->
+    <div id="cart-modal" class="modal-overlay" onclick="if(event.target===this)closeCartModal()">
+        <div class="cart-sidebar">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">
+                <div>
+                    <div style="font-family:var(--font-display);font-weight:700;font-size:1.05rem;">Carrito</div>
+                    <div style="font-size:.75rem;color:var(--text-3);" id="cart-items-count">0 artículos</div>
+                </div>
+                <button class="icon-btn" onclick="closeCartModal()">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                </button>
+            </div>
+            <div id="cart-items-container" class="cart-items"></div>
+            <div class="cart-footer">
+                <div class="cart-total-row">
+                    <span class="cart-total-label">Total</span>
+                    <span class="cart-total-amount" id="cart-total">$0.00</span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:8px;">
+                    <button id="confirm-buy-btn" class="btn btn-primary btn-wide" onclick="realizarCompraDeCarrito()">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="1" y="4" width="22" height="16" rx="2" />
+                            <line x1="1" y1="10" x2="23" y2="10" />
+                        </svg>
+                        Proceder al pago
+                    </button>
+                    <button class="btn btn-ghost btn-wide" onclick="closeCartModal()">Seguir comprando</button>
+                </div>
             </div>
         </div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.0/vanilla-tilt.min.js"></script>
     <script>
         const API_BASE = "http://localhost:1915/servidor";
         let userData = JSON.parse(localStorage.getItem('user'));
         let authToken = localStorage.getItem('auth_token');
-        let selectedEventId = null;
-
+        let carrito = [];
+        let estadosPreviosCompras = {}; // Para trackear cambios de estado y evitar animaciones infinitas
         if (!userData || !authToken) window.location.href = 'login.html';
 
-        document.getElementById('user-display').textContent = `Hola, ${userData.nombre}`;
-        if (userData.rol === 'admin') {
-            document.getElementById('admin-nav').style.display = 'block';
-            document.getElementById('admin-create-btn').style.display = 'block';
+        window.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); closeCartModal(); } });
+
+        const initials = (userData.nombre || '?').split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
+        document.getElementById('user-avatar').textContent = initials;
+        document.getElementById('user-display').textContent = userData.nombre;
+        document.getElementById('role-display').textContent = userData.rol === 'admin' ? 'Administrador' : 'Cliente';
+        if (userData.rol === 'admin') document.getElementById('admin-nav').style.display = 'flex';
+
+        // ─── UTILIDADES ───────────────────────────────────
+        function showNotification(msg, type = 'success', dur = 3500) {
+            const icons = {
+                success: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
+                error: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`,
+                warning: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+            };
+            const el = document.createElement('div');
+            el.className = `alert alert-${type}`;
+            el.innerHTML = `${icons[type] || ''}<span>${msg}</span>`;
+            document.getElementById('alert-container').appendChild(el);
+            setTimeout(() => { el.style.animation = 'alertOut 0.3s ease forwards'; setTimeout(() => el.remove(), 300); }, dur);
         }
 
-        function showNotification(message, type = 'success') {
-            const container = document.getElementById('alert-container');
-            const alert = document.createElement('div');
-            alert.className = `alert alert-${type}`;
-            alert.textContent = message;
-            container.appendChild(alert);
-            setTimeout(() => alert.remove(), 4000);
+        function notifyAndLogout() { showNotification('Sesión expirada.', 'error'); setTimeout(logout, 2000); }
+        function logout() { localStorage.clear(); document.body.style.transition = 'opacity 0.4s'; document.body.style.opacity = '0'; setTimeout(() => window.location.href = 'login.html', 450); }
+
+        function getFancyDate(iso) {
+            const d = new Date(iso);
+            const m = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+            return { day: d.getDate().toString().padStart(2, '0'), month: m[d.getMonth()], year: d.getFullYear(), time: d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
+        }
+
+        async function firmarMensaje(msg) {
+            const enc = new TextEncoder();
+            const key = await crypto.subtle.importKey('raw', enc.encode('miguel123'), { name: 'HMAC', hash: { name: 'SHA-256' } }, false, ['sign']);
+            const sig = await crypto.subtle.sign('HMAC', key, enc.encode(msg));
+            return btoa(String.fromCharCode(...new Uint8Array(sig)));
         }
 
         function showTab(tabId, el) {
             document.querySelectorAll('.dashboard-section').forEach(s => s.style.display = 'none');
             document.getElementById(tabId).style.display = 'block';
             document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-            el.classList.add('active');
-
+            if (el) el.classList.add('active');
             if (tabId === 'eventos-tab') cargarEventos();
             if (tabId === 'mis-tickets-tab') cargarMisTickets();
+            if (tabId === 'mis-compras-tab') {
+                cargarMisCompras();
+                iniciarAutoRefreshCompras();
+            } else {
+                detenerAutoRefreshCompras();
+            }
         }
 
-        // funcion de integridad HMACSHA256
-        async function firmarMensaje(mensaje) {
-            const encoder = new TextEncoder();
-            const datos = encoder.encode(mensaje);
-            const datosClave = encoder.encode("miguel123");
-
-            // Importar la clave para HMAC
-            const cryptoKey = await window.crypto.subtle.importKey(
-                "raw", datosClave,
-                { name: "HMAC", hash: { name: "SHA-256" } },
-                false, ["sign"]
-            );
-
-            // Firmar el mensaje
-            const firma = await window.crypto.subtle.sign("HMAC", cryptoKey, datos);
-
-            // Convertir de ArrayBuffer a Base64
-            return btoa(String.fromCharCode(...new Uint8Array(firma)));
+        let refreshInterval = null;
+        function iniciarAutoRefreshCompras() {
+            if (refreshInterval) return;
+            refreshInterval = setInterval(() => {
+                if (document.getElementById('mis-compras-tab').style.display === 'block') {
+                    cargarMisCompras();
+                } else {
+                    detenerAutoRefreshCompras();
+                }
+            }, 3000);
+        }
+        function detenerAutoRefreshCompras() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+                refreshInterval = null;
+            }
         }
 
+        // ─── CARTELERA ────────────────────────────────────
         async function cargarEventos() {
+            const c = document.getElementById('lista-eventos');
+            c.innerHTML = `<div class="empty-state" style="grid-column:1/-1;"><span class="spinner" style="margin-bottom:1rem;"></span><p>Cargando...</p></div>`;
             try {
-                const token = localStorage.getItem('auth_token');
-                const res = await fetch(`${API_BASE}/eventos`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                const res = await fetch(`${API_BASE}/eventos`, { headers: { 'Authorization': `Bearer ${authToken}` } });
                 if (res.status === 401) return notifyAndLogout();
                 const eventos = await res.json();
-                const container = document.getElementById('lista-eventos');
-                container.innerHTML = eventos.length ? '' : '<p>No hay eventos disponibles.</p>';
-
+                c.innerHTML = '';
+                if (!eventos.length) { c.innerHTML = `<div class="empty-state" style="grid-column:1/-1;"><p>No hay eventos programados.</p></div>`; return; }
                 eventos.forEach(ev => {
+                    const fd = getFancyDate(ev.fecha);
+                    const hasImg = ev.imagen_url && ev.imagen_url.trim() && ev.imagen_url !== 'null';
                     const card = document.createElement('div');
-                    card.className = 'glass-card event-card';
+                    card.className = 'event-card';
                     card.innerHTML = `
-                        <div class="event-header">
-                            <div>
-                                <h3 style="margin-bottom: 0.5rem;">${ev.nombre}</h3>
-                                <span class="badge badge-blue">${new Date(ev.fecha).toLocaleString()}</span>
-                            </div>
-                        </div>
-                        <div style="margin-top: 1rem;">
-                            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.5rem;">
-                                Capacidad: ${ev.capacidad} personas
-                            </p>
-                            <button class="btn btn-primary" style="width: 100%" onclick="openBuyModal(${ev.id_evento}, '${ev.nombre}')">Comprar Entradas</button>
-                        </div>
-                    `;
-                    container.appendChild(card);
+            <div class="event-img">
+              <div class="event-img-bg">${hasImg ? `<img src="${ev.imagen_url}" alt="${ev.nombre}" loading="lazy">` : ''}</div>
+              ${!hasImg ? `<span class="live-label">LIVE</span>` : ''}
+              <div class="event-img-fade"></div>
+              <div class="event-date-badge">
+                <span class="edb-month">${fd.month}</span>
+                <span class="edb-day">${fd.day}</span>
+              </div>
+            </div>
+            <div class="event-body">
+              <div class="event-name">${ev.nombre}</div>
+              <div class="event-meta">
+                <div class="event-meta-row">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="3"/><path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 14 8 14s8-8.75 8-14a8 8 0 0 0-8-8z"/></svg>
+                  <span>Main Arena · <b style="color:${ev.capacidad > 0 ? 'var(--green)' : 'var(--red)'}">${ev.capacidad > 0 ? (ev.capacidad + ' disponibles') : 'Agotado'}</b></span>
+                </div>
+                <div class="event-meta-row">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  <span>${fd.time} · ${fd.year}</span>
+                </div>
+              </div>
+            </div>
+            <div class="event-footer">
+              <button class="btn btn-primary btn-wide" onclick="openBuyModal(${ev.id_evento},'${ev.nombre.replace(/'/g, "\\'")}')">Ver entradas</button>
+            </div>`;
+                    c.appendChild(card);
                 });
-            } catch (err) {
-                showNotification('Error al cargar eventos', 'error');
-            }
+                VanillaTilt.init(document.querySelectorAll('.event-card'), { max: 8, speed: 400, glare: true, 'max-glare': 0.12, scale: 1.01 });
+            } catch { showNotification('Error cargando eventos', 'error'); }
         }
 
-        async function openBuyModal(eventId, eventName) {
-            selectedEventId = eventId;
-            document.getElementById('modal-event-title').textContent = eventName;
-            document.getElementById('buy-modal').style.display = 'flex';
-
-            const container = document.getElementById('ticket-types-container');
-            container.innerHTML = '<p>Buscando tipos de entradas...</p>';
-
-            try {
-                const token = localStorage.getItem('auth_token');
-                const res = await fetch(`${API_BASE}/eventos/tipos?id=${eventId}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (res.status === 401) return notifyAndLogout();
-                const tipos = await res.json();
-
-                if (!tipos.length) {
-                    container.innerHTML = '<p style="color: var(--secondary-color)">Aún no hay entradas configuradas para este evento.</p>';
-                    document.getElementById('confirm-buy-btn').disabled = true;
-                    return;
-                }
-
-                document.getElementById('confirm-buy-btn').disabled = false;
-                container.innerHTML = '<label>Selecciona tu entrada</label><select id="ticket-type-select"></select>';
-                const select = document.getElementById('ticket-type-select');
-
-                tipos.forEach(t => {
-                    const opt = document.createElement('option');
-                    opt.value = t.id_tipo_ticket;
-                    opt.textContent = `${t.tipo_asiento} - $${t.precio} (${t.cantidad} disponibles)`;
-                    select.appendChild(opt);
-                });
-
-                document.getElementById('confirm-buy-btn').onclick = () => realizarCompra(select.value);
-
-            } catch (err) {
-                showNotification('Error al obtener tipos de tickets', 'error');
-            }
-        }
-
-        async function realizarCompra(tipoId) {
-            const btn = document.getElementById('confirm-buy-btn');
-            btn.disabled = true;
-            btn.textContent = 'Procesando...';
-
-            try {
-                const token = localStorage.getItem('auth_token');
-                const body = JSON.stringify({
-                    id_evento: selectedEventId,
-                    id_usuario: userData.id_usuario,
-                    id_tipo_ticket: parseInt(tipoId),
-                    idempotency_key: 'KEY-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now()
-                });
-                const firma = await firmarMensaje(body);
-
-                const res = await fetch(`${API_BASE}/tickets`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`,
-                        'X-Integrity-Check': firma
-                    },
-                    body: body
-                });
-
-                if (res.status === 401) return notifyAndLogout();
-
-                const data = await res.json();
-
-                if (res.status === 403) {
-                    showNotification('¡ALERTA DE SEGURIDAD! El mensaje ha sido alterado o la firma es inválida.', 'error');
-                    return;
-                }
-
-                if (data.status === 'OK') {
-                    showNotification('¡Compra realizada con éxito! Revisa tu email ficticio.');
-                    closeModal();
-                } else {
-                    showNotification(data.message || 'Error en la compra', 'error');
-                }
-            } catch (err) {
-                showNotification('Error de red al comprar', 'error');
-            } finally {
-                btn.disabled = false;
-                btn.textContent = 'Confirmar Compra';
-            }
-        }
-
+        // ─── BILLETERA ────────────────────────────────────
         async function cargarMisTickets() {
+            const c = document.getElementById('lista-tickets');
+            c.innerHTML = `<div class="empty-state"><span class="spinner" style="margin-bottom:1rem;"></span><p>Cargando...</p></div>`;
             try {
-                const token = localStorage.getItem('auth_token');
-                const res = await fetch(`${API_BASE}/tickets?usuario=${userData.id_usuario}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                const res = await fetch(`${API_BASE}/tickets?usuario=${userData.id_usuario}`, { headers: { 'Authorization': `Bearer ${authToken}` } });
                 if (res.status === 401) return notifyAndLogout();
                 const tickets = await res.json();
-                const container = document.getElementById('lista-tickets');
-                container.innerHTML = tickets.length ? '' : '<p>No has comprado tickets todavía.</p>';
-
-                tickets.forEach(tk => {
-                    const card = document.createElement('div');
-                    card.className = 'glass-card';
-                    card.innerHTML = `
-                        <div style="border-left: 4px solid var(--primary-color); padding-left: 1rem;">
-                            <h4 style="margin-bottom: 0.5rem;">Ticket #${tk.id_ticket.substring(0, 8)}</h4>
-                            <p style="font-weight: 600; font-size: 1.1rem; margin-bottom: 0.5rem;">${tk.nombre_evento}</p>
-                            <span class="badge badge-green">${tk.tipo_asiento}</span>
-                            <p style="margin-top: 1rem; font-size: 1.2rem; font-weight: 700;">$${tk.precio}</p>
-                        </div>
-                    `;
-                    container.appendChild(card);
-                });
-            } catch (err) {
-                showNotification('Error al cargar tus tickets', 'error');
-            }
-        }
-
-        document.getElementById('create-event-form').onsubmit = async (e) => {
-            e.preventDefault();
-            const btn = e.target.querySelector('button');
-            const nombre = document.getElementById('ev-nombre').value;
-            const fecha = document.getElementById('ev-fecha').value;
-            const capacidad = parseInt(document.getElementById('ev-capacidad').value);
-            const precio = parseFloat(document.getElementById('ev-precio').value);
-
-            btn.disabled = true;
-            btn.textContent = 'Guardando...';
-
-            try {
-                const token = localStorage.getItem('auth_token');
-
-                // 1. Crear el Evento
-                const eventBody = JSON.stringify({ nombre, fecha, capacidad });
-                const firmaEvento = await firmarMensaje(eventBody);
-
-                const resEvent = await fetch(`${API_BASE}/eventos`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`,
-                        'X-Integrity-Check': firmaEvento
-                    },
-                    body: eventBody
-                });
-
-                if (resEvent.status === 401) return notifyAndLogout();
-
-                const eventData = await resEvent.json();
-
-                if (resEvent.status === 403) {
-                    showNotification('¡Error de Integridad! No se pudo crear el evento.', 'error');
+                c.innerHTML = '';
+                if (!tickets.length) {
+                    c.innerHTML = `<div class="empty-state"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z"/></svg><p>Tu billetera está vacía.</p></div>`;
                     return;
                 }
+                tickets.forEach(tk => {
+                    const fd = getFancyDate(tk.fecha_evento || tk.fecha_compra || new Date().toISOString());
+                    const n = tk.tipo_asiento.toLowerCase();
+                    const badgeClass = n.includes('vip') ? 'badge-vip' : n.includes('palco') ? 'badge-palco' : 'badge-general';
+                    const shortId = tk.id_ticket.substring(0, 8).toUpperCase();
 
-                if (eventData.status === 'OK') {
-                    // 2. Crear el Tipo de Ticket (General) automáticamente
-                    const ticketBody = JSON.stringify({
-                        id_evento: eventData.id_evento,
-                        tipo_asiento: 'General',
-                        cantidad: capacidad,
-                        precio: precio
-                    });
-                    const firmaTicket = await firmarMensaje(ticketBody);
+                    /*
+                      Ticket diseñado con radial-gradient en el CSS (.ticket-wallet-item).
+                      El background del elemento mismo crea los semicírculos de muesca
+                      izquierda y derecha sin necesidad de div wrapper ni ::before/::after.
+                    */
+                    const ticket = document.createElement('div');
+                    ticket.className = 'ticket-wallet-item';
+                    ticket.innerHTML = `
+            <div class="ticket-stub">
+              <span class="ts-month">${fd.month}</span>
+              <span class="ts-day">${fd.day}</span>
+              <span class="ts-time">${fd.time}</span>
+            </div>
+            <div class="ticket-body">
+              <div class="ticket-body-top">
+                <div class="ticket-event-name">${tk.nombre_evento}</div>
+                <span class="badge ${badgeClass}">${tk.tipo_asiento}</span>
+              </div>
+              <div class="ticket-ref">REF: #${shortId}</div>
+              <div class="ticket-body-bot">
+                <div class="ticket-holder">TITULAR<strong>${userData.nombre}</strong></div>
+                <div class="ticket-price">$${tk.precio}</div>
+              </div>
+            </div>`;
+                    c.appendChild(ticket);
+                });
+                VanillaTilt.init(document.querySelectorAll('.ticket-wallet-item'), { max: 4, speed: 300, glare: true, 'max-glare': 0.1, scale: 1.01 });
+            } catch { showNotification('Error cargando billetera', 'error'); }
+        }
 
-                    const resTicket = await fetch(`${API_BASE}/eventos/tipos`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`,
-                            'X-Integrity-Check': firmaTicket
-                        },
-                        body: ticketBody
-                    });
+        // ─── HISTORIAL ────────────────────────────────────
+        async function cargarMisCompras() {
+            const c = document.getElementById('lista-compras');
+            c.innerHTML = `<div class="empty-state"><span class="spinner" style="margin-bottom:1rem;"></span><p>Cargando...</p></div>`;
+            try {
+                const res = await fetch(`${API_BASE}/compras?usuario=${userData.id_usuario}`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+                if (res.status === 401) return notifyAndLogout();
+                const arr = await res.json();
+                c.innerHTML = '';
+                if (!arr.length) { c.innerHTML = `<div class="empty-state"><p>Sin historial de compras.</p></div>`; return; }
+                const agrupadas = arr.reduce((acc, tk) => {
+                    const key = tk.orden_id || 'ORD-' + tk.id_compra;
+                    if (!acc[key]) acc[key] = { items: [], total: 0, date: tk.fecha_compra };
+                    acc[key].total += tk.total;
+                    acc[key].items.push(tk); return acc;
+                }, {});
+                for (const [key, g] of Object.entries(agrupadas)) {
+                    const shortKey = (key.split('-')[2] || key).substring(0, 8).toUpperCase();
+                    const estadoActual = g.items[0].estado;
+                    const estadoPrevio = estadosPreviosCompras[key];
+                    
+                    // Solo animamos si el estado CAMBIA de 'pendiente' a 'completada'
+                    const debeAnimarExito = estadoPrevio === 'pendiente' && estadoActual === 'completada';
+                    
+                    // Guardamos el estado para la próxima comparación
+                    estadosPreviosCompras[key] = estadoActual;
 
-                    if (resTicket.status === 401) return notifyAndLogout();
-
-                    showNotification('Evento y entradas creados con éxito');
-                    e.target.reset();
-                    toggleCreateForm();
-                    cargarEventos();
-                } else {
-                    showNotification('Error al crear evento', 'error');
+                    const card = document.createElement('div');
+                    card.className = 'order-card';
+                    card.innerHTML = `
+            <div class="order-header">
+              <div><div class="order-title">Orden <span class="order-id">${shortKey}</span></div><div class="order-date">${g.date}</div></div>
+              <div style="text-align:right;">
+                <div class="order-total">$${parseFloat(g.total).toFixed(2)}</div>
+                ${estadoActual === 'completada'
+                        ? `<div class="${debeAnimarExito ? 'status-paid' : ''}" style="display:inline-flex; align-items:center; gap:4px; color:var(--green); font-weight:700; font-size:0.65rem;">
+                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> 
+                             Pagado
+                           </div>`
+                        : `<div class="status-processing"><span class="spinner-mini"></span> Procesando...</div>`
+                    }
+              </div>
+            </div>
+            <div class="order-items">
+              ${g.items.map(tk => `
+                <div class="order-item-row">
+                  <div><div class="order-item-name">${tk.nombre_evento}</div><div class="order-item-sub">${tk.tipo_asiento} · <span style="font-family:monospace;">#${tk.id_ticket.substring(0, 8).toUpperCase()}</span></div></div>
+                  <span class="badge badge-ok">Confirmado</span>
+                </div>`).join('')}
+            </div>`;
+                    c.appendChild(card);
                 }
-            } catch (err) {
-                showNotification('Error al conectar con el servidor', 'error');
-            } finally {
-                btn.disabled = false;
-                btn.textContent = 'Guardar Evento y Entradas';
+            } catch { showNotification('Error cargando historial', 'error'); }
+        }
+
+        // ─── MODAL ENTRADAS ───────────────────────────────
+        async function openBuyModal(eventId, eventName) {
+            document.getElementById('modal-event-title').textContent = eventName;
+            document.getElementById('buy-modal').classList.add('active');
+            const c = document.getElementById('ticket-types-container');
+            c.innerHTML = `<div style="text-align:center;padding:2rem;"><span class="spinner"></span></div>`;
+            try {
+                const res = await fetch(`${API_BASE}/eventos/tipos?id=${eventId}`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+                if (res.status === 401) return notifyAndLogout();
+                const tipos = await res.json();
+                if (!tipos.length) { c.innerHTML = `<div class="empty-state"><p>Sin boletos disponibles.</p></div>`; return; }
+                c.innerHTML = '';
+                tipos.forEach(t => {
+                    const sold = t.cantidad <= 0;
+                    const opt = document.createElement('div');
+                    opt.className = `ticket-option${sold ? ' sold-out' : ''}`;
+                    opt.innerHTML = `
+            <div class="ticket-option-info">
+              <div class="ticket-option-name">${t.tipo_asiento}</div>
+              <div class="ticket-option-stock">${sold ? 'Agotado' : `${t.cantidad} disponibles`}</div>
+            </div>
+            <span class="ticket-option-price">$${t.precio}</span>
+            <button class="btn btn-primary btn-sm" ${sold ? 'disabled' : ''} onclick="agregarAlCarrito(${eventId},'${eventName.replace(/'/g, "\\'")}',${t.id_tipo_ticket},'${t.tipo_asiento}',${t.precio})">
+              + Carrito
+            </button>`;
+                    c.appendChild(opt);
+                });
+            } catch { c.innerHTML = `<div class="empty-state"><p style="color:var(--red);">Error al cargar.</p></div>`; }
+        }
+        function closeModal() { document.getElementById('buy-modal').classList.remove('active'); }
+
+        // ─── CARRITO ──────────────────────────────────────
+        function agregarAlCarrito(idEv, nomEv, idTipo, nomAsiento, precio) {
+            const item = carrito.find(x => x.id_tipo_ticket === idTipo && x.id_evento === idEv);
+            if (item) item.cantidad++; else carrito.push({ id_evento: idEv, nombre_evento: nomEv, id_tipo_ticket: idTipo, tipo_asiento: nomAsiento, precio, cantidad: 1 });
+            showNotification(`${nomAsiento} añadido al carrito`, 'success', 2000);
+            actualizarBadgeCarrito(); closeModal();
+            const btn = document.getElementById('cart-btn');
+            btn.style.transform = 'scale(1.25)'; setTimeout(() => btn.style.transform = '', 200);
+        }
+        function actualizarBadgeCarrito() { document.getElementById('cart-count-badge').textContent = carrito.reduce((a, c) => a + c.cantidad, 0); }
+
+        function openCartModal() {
+            const c = document.getElementById('cart-items-container');
+            const totalEl = document.getElementById('cart-total');
+            const countEl = document.getElementById('cart-items-count');
+            const total = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
+            const count = carrito.reduce((s, i) => s + i.cantidad, 0);
+            countEl.textContent = `${count} artículo${count !== 1 ? 's' : ''}`;
+            if (!carrito.length) {
+                c.innerHTML = `<div class="empty-state" style="padding:2rem 0;"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg><p>Carrito vacío</p></div>`;
+                totalEl.textContent = '$0.00'; document.getElementById('confirm-buy-btn').disabled = true;
+            } else {
+                document.getElementById('confirm-buy-btn').disabled = false; c.innerHTML = '';
+                carrito.forEach((item, i) => {
+                    const row = document.createElement('div'); row.className = 'cart-item';
+                    row.innerHTML = `
+            <div class="cart-item-info"><div class="cart-item-name">${item.nombre_evento}</div><div class="cart-item-sub">${item.tipo_asiento} × ${item.cantidad}</div></div>
+            <div class="cart-item-price">$${(item.precio * item.cantidad).toFixed(2)}</div>
+            <button class="icon-btn danger" style="width:28px;height:28px;" onclick="removerDelCarrito(${i})" title="Quitar">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>`;
+                    c.appendChild(row);
+                });
+                totalEl.textContent = `$${total.toFixed(2)}`;
             }
-        };
+            document.getElementById('cart-modal').classList.add('active');
+        }
+        function removerDelCarrito(i) { carrito.splice(i, 1); actualizarBadgeCarrito(); openCartModal(); }
+        function closeCartModal() { document.getElementById('cart-modal').classList.remove('active'); }
 
-        function toggleCreateForm() {
-            const section = document.getElementById('create-event-section');
-            const btn = document.getElementById('admin-create-btn');
-            const isHidden = section.style.display === 'none';
-            section.style.display = isHidden ? 'block' : 'none';
-            btn.textContent = isHidden ? 'Cerrar' : '+ Nuevo Evento';
+        // ─── PASO 1: RESUMEN ──────────────────────────────
+        function realizarCompraDeCarrito() {
+            if (!carrito.length) return;
+            const total = carrito.reduce((s, c) => s + c.precio * c.cantidad, 0);
+            document.getElementById('resumen-detalle').innerHTML = `
+        ${carrito.map(c => `
+          <div class="confirm-item">
+            <div><div style="font-weight:600;font-size:.88rem;">${c.nombre_evento}</div><div style="font-size:.75rem;color:var(--text-3);">${c.tipo_asiento} <span class="badge badge-general">×${c.cantidad}</span></div></div>
+            <div style="font-weight:700;font-size:.9rem;">$${(c.precio * c.cantidad).toFixed(2)}</div>
+          </div>`).join('')}
+        <div class="confirm-total">
+          <span class="confirm-total-label">Total a pagar</span>
+          <span class="confirm-total-amount">$${total.toFixed(2)}</span>
+        </div>`;
+            closeCartModal();
+            document.querySelectorAll('.dashboard-section').forEach(s => s.style.display = 'none');
+            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+            document.getElementById('resumen-compra-tab').style.display = 'block';
+            const btn = document.getElementById('confirmar-pago-btn');
+            btn.disabled = false;
+            btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg> Pagar ahora`;
+        }
+        function cancelarConfirmacion() { showTab('eventos-tab', document.querySelector('.nav-link[data-tab="eventos-tab"]')); }
+
+        // ─── PASO 2: PAGO ─────────────────────────────────
+        async function confirmarPagoFinal() {
+            if (!carrito.length) { showNotification('Carrito vacío', 'error'); return; }
+            const btn = document.getElementById('confirmar-pago-btn');
+            btn.disabled = true; btn.innerHTML = `<span class="spinner"></span> Procesando...`;
+            try {
+                const payload = carrito.map(c => ({ id_evento: c.id_evento, id_tipo_ticket: c.id_tipo_ticket, cantidad: c.cantidad }));
+                const body = JSON.stringify({ id_usuario: userData.id_usuario, carrito: payload, idempotency_key: 'TKM-CART-' + crypto.randomUUID() });
+                const firma = await firmarMensaje(body);
+                const res = await fetch(`${API_BASE}/tickets`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}`, 'X-Integrity-Check': firma },
+                    body
+                });
+                if (res.status === 401) return notifyAndLogout();
+                if (res.status === 403) { showNotification('Error de integridad.', 'error'); btn.disabled = false; btn.textContent = 'Reintentar'; return; }
+                const data = await res.json();
+                if (data.status === 'OK' || data.status === 'PENDING') {
+                    if (data.status === 'PENDING') {
+                        showNotification('¡Pago en proceso! Los tickets están reservados.');
+                    } else {
+                        showNotification('¡Pago exitoso! Entradas emitidas.');
+                    }
+                    carrito = []; actualizarBadgeCarrito();
+                    // Ir a Compras
+                    showTab('mis-compras-tab', document.querySelector('.nav-link[data-tab="mis-compras-tab"]'));
+                } else {
+                    showNotification(data.message || 'Error en el pago', 'error');
+                    btn.disabled = false;
+                    btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg> Reintentar`;
+                }
+            } catch { showNotification('Error de red', 'error'); btn.disabled = false; btn.textContent = 'Reintentar'; }
         }
 
-        function closeModal() { document.getElementById('buy-modal').style.display = 'none'; }
-
-        function notifyAndLogout() {
-            showNotification('Sesión expirada o inválida. Redirigiendo...', 'error');
-            setTimeout(() => {
-                localStorage.clear();
-                window.location.href = 'login.html';
-            }, 2000);
+        // ─── ADMIN ────────────────────────────────────────
+        function addTicketTypeRow() {
+            const row = document.createElement('div'); row.className = 'ticket-type-row';
+            row.innerHTML = `
+        <div class="form-group" style="margin:0;"><label>Categoría</label><input type="text" class="dyn-tt-nombre" placeholder="General" required></div>
+        <div class="form-group" style="margin:0;"><label>Cantidad</label><input type="number" class="dyn-tt-cantidad" placeholder="100" min="1" required></div>
+        <div class="form-group" style="margin:0;"><label>Precio $</label><input type="number" class="dyn-tt-precio" placeholder="50" step="0.01" min="0" required></div>
+        <button type="button" class="icon-btn danger" style="margin-top:20px;flex-shrink:0;" onclick="this.closest('.ticket-type-row').remove()" title="Eliminar">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>`;
+            document.getElementById('dynamic-ticket-types').appendChild(row);
         }
 
-        function logout() {
-            localStorage.clear();
-            window.location.href = 'login.html';
+        async function crearEvento(e) {
+            e.preventDefault();
+            const btn = document.getElementById('create-event-btn');
+            btn.disabled = true; btn.innerHTML = `<span class="spinner"></span> Publicando...`;
+            try {
+                const nombre = document.getElementById('ev-nombre').value;
+                const fecha = document.getElementById('ev-fecha').value;
+                const imagen_url = document.getElementById('ev-imagen').value || null;
+                const tipos_tickets = [];
+                document.querySelectorAll('.ticket-type-row').forEach(row => {
+                    tipos_tickets.push({ tipo_asiento: row.querySelector('.dyn-tt-nombre').value, cantidad: parseInt(row.querySelector('.dyn-tt-cantidad').value), precio: parseFloat(row.querySelector('.dyn-tt-precio').value) });
+                });
+                if (!tipos_tickets.length) { showNotification('Agrega al menos un tipo de entrada.', 'error'); return; }
+                const body = JSON.stringify({ nombre, fecha, imagen_url, tipos_tickets });
+                const firma = await firmarMensaje(body);
+                const res = await fetch(`${API_BASE}/eventos`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}`, 'X-Integrity-Check': firma }, body });
+                if (res.status === 401) return notifyAndLogout();
+                const data = await res.json();
+                if (data.status === 'OK') {
+                    showNotification(`Evento "${nombre}" publicado.`);
+                    e.target.reset();
+                    const rows = document.querySelectorAll('.ticket-type-row');
+                    for (let i = 1; i < rows.length; i++)rows[i].remove();
+                } else { showNotification(data.message || 'Error al crear', 'error'); }
+            } catch { showNotification('Error de conexión', 'error'); }
+            finally { btn.disabled = false; btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Publicar evento`; }
         }
 
-        /* 
-         * 
-         * async function probarAtaque() {
-         *     const token = localStorage.getItem('auth_token');
-         *     const cuerpo = JSON.stringify({ id_evento: 1, id_usuario: 1, id_tipo_ticket: 1, idempotency_key: 'ATAQUE-TEST' });
-         *     
-         *     const res = await fetch("http://localhost:1915/servidor/tickets", {
-         *         method: 'POST',
-         *         headers: {
-         *             'Content-Type': 'application/json',
-         *             'Authorization': `Bearer ${token}`,
-         *             'X-Integrity-Check': 'firmafalsa' // Firma falsa
-         *         },
-         *         body: cuerpo
-         *     });
-         *     
-         *     const data = await res.json();
-         *     console.log("Respuesta (debería ser 403):", res.status, data);
-         * }
-         */
-
-        // Init
         cargarEventos();
     </script>
 </body>

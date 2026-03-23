@@ -9,14 +9,17 @@ if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
 
-Write-Host "--- 2. Limpiando Contenedores e Imágenes Anteriores ---" -ForegroundColor Cyan
-docker-compose down --rmi all
+Write-Host "--- 2. Deteniendo Contenedores Anteriores ---" -ForegroundColor Cyan
+# Detener sin borrar imágenes externas (evita problemas de red al re-descargar nginx, etc.)
+docker-compose down
 
 Write-Host "--- 3. Construyendo e Iniciando Contenedores ---" -ForegroundColor Cyan
-# docker-compose up --build construye las imágenes y levanta 2 servidores
+# Levantamos Balanceador, Pasarela, Nginx y 2 instancias del Servidor
 docker-compose up --build -d --scale server=2
 
 Write-Host "--- ¡Todo listo! ---" -ForegroundColor Green
-Write-Host "Balanceador en: http://localhost:1915"
-Write-Host "Servidor en: http://localhost:1914"
+Write-Host "Acceso General (Frontend + API): http://localhost:8080"
+Write-Host "Balanceador de Carga (Java) en: http://localhost:1915"
+Write-Host "Pasarela de Pago (Java) en:    http://localhost:1916"
+Write-Host "Dashboard de Servidores en:   http://localhost:1914"
 Write-Host "Usa 'docker-compose logs -f' para ver los logs en tiempo real."

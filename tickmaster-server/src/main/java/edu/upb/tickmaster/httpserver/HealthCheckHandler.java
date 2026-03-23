@@ -8,7 +8,6 @@ import edu.upb.tickmaster.db.ConexionDb;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
@@ -31,34 +30,7 @@ public class HealthCheckHandler implements HttpHandler {
         // --- 2. CONSTRUCCIÓN DEL OBJETO JSON PRINCIPAL ---
         // Usamos la librería Gson para crear la estructura de datos
         JsonObject health = new JsonObject();
-        health.addProperty("status", "OK");
-
-        // --- 3. RECOPILACIÓN DE MÉTRICAS DE MEMORIA ---
-        Runtime runtime = Runtime.getRuntime();
-        long totalMemory = runtime.totalMemory();
-        long freeMemory = runtime.freeMemory();
-        long maxMemory = runtime.maxMemory();
-        long usedMemory = totalMemory - freeMemory;
-
-        // Creamos un sub-objeto para la memoria
-        JsonObject memory = new JsonObject();
-        memory.addProperty("used_mb", usedMemory / (1024 * 1024));
-        memory.addProperty("free_mb", freeMemory / (1024 * 1024));
-        memory.addProperty("total_mb", totalMemory / (1024 * 1024));
-        memory.addProperty("max_mb", maxMemory / (1024 * 1024));
-
-        // Agregamos el objeto de memoria al objeto principal 'health'
-        health.add("memory", memory);
-
-        // --- 4. VERIFICACIÓN DE ESPACIO EN DISCO ---
-        File disk = new File(".");
-        JsonObject diskInfo = new JsonObject();
-        diskInfo.addProperty("total_gb", disk.getTotalSpace() / (1024 * 1024 * 1024));
-        diskInfo.addProperty("free_gb", disk.getFreeSpace() / (1024 * 1024 * 1024));
-        diskInfo.addProperty("usable_gb", disk.getUsableSpace() / (1024 * 1024 * 1024));
-
-        // Agregamos la información del disco a la respuesta
-        health.add("disk", diskInfo);
+        health.addProperty("status", "UP");
 
         // --- 5. VERIFICACIÓN DE ESTADO DE BASE DE DATOS ---
         JsonObject database = new JsonObject();
@@ -71,14 +43,14 @@ public class HealthCheckHandler implements HttpHandler {
             } else {
                 database.addProperty("status", "DOWN");
                 database.addProperty("message", "Conexión cerrada");
-                // Si la DB falla, el estado general se marca como DEGRADADO
-                health.addProperty("status", "DEGRADED");
+                // Si la DB falla, el estado general se marca como DOWN
+                health.addProperty("status", "DOWN");
             }
         } catch (SQLException e) {
             logger.error("Error al verificar la base de datos", e);
             database.addProperty("status", "DOWN");
             database.addProperty("message", e.getMessage());
-            health.addProperty("status", "DEGRADED");
+            health.addProperty("status", "DOWN");
         }
         health.add("database", database);
 
